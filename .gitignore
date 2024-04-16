@@ -1,0 +1,9 @@
+/.vscode
+/cover.html
+/coverage.txt
+/coverage.xml
+/postgresql-partition-manager
+/postgresql-partition-manager.yaml
+/ppm
+scripts/localdev/.data
+/dist
