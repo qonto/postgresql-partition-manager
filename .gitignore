@@ -1,0 +1,9 @@
+.DS_Store
+/.vscode
+/cover.html
+/coverage.txt
+/coverage.xml
+/dist
+/postgresql-partition-manager
+/postgresql-partition-manager.yaml
+scripts/localdev/.data
