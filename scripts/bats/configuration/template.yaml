@@ -1,0 +1,6 @@
+---
+debug: true
+
+log-format: text
+
+connection-url: postgres://postgres:hackme@localhost/unittest
