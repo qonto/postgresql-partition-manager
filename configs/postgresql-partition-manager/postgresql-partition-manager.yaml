@@ -1,0 +1,33 @@
+#
+# PostgreSQL partition manager
+#
+
+# Enable debug mode
+# debug: false
+
+# Log format (text or json)
+# log-format: json
+
+# Set maximum allowed duration of any statement (milliseconds unit)
+# statement-timeout: 3000
+
+# Sets the maximum allowed duration of any wait for a lock (milliseconds unit)
+# This parameter prevent infitite locks when long running transaction occured
+# lock-timeout: 300
+
+# PostgreSQL connection URL
+# connection-url: postgres://postgres:root@localhost/partitions
+
+#
+# Partitions definition
+#
+
+# partitions:
+#   my_partition:
+#     schema: public
+#     table: my_date
+#     partitionKey: my_column
+#     interval: daily
+#     retention: 30
+#     preProvisioned: 7
+#     cleanupPolicy: drop
