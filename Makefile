@@ -48,6 +48,9 @@ debian-test-ci:
 	docker build configs/debian/tests -t test
 	docker run -v ./dist/postgresql-partition-manager_0.0.1~next_amd64.deb:/mnt/postgresql-partition-manager.deb test
 
+checkcov:
+	checkov --directory .
+
 .PHONY: test
 test:
 	go test -race -v ./... -coverprofile=coverage.txt -covermode atomic
