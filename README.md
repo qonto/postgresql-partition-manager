@@ -109,7 +109,7 @@ PPM is available as a Docker image, Debian package, and Binary.
     --version ${POSTGRESQL_PARTION_MANAGER} \
     --install \
     --namespace ${KUBERNETES_NAMESPACE}
-    --values
+    --values values.yaml
     ```
 
 1. Trigger job manually and verify application logs

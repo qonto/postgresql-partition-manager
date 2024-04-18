@@ -70,11 +70,11 @@ We use:
 
 1. Install requirements
 
-    - [Golang 1.21](https://go.dev/doc/install)
+    * [Golang 1.21](https://go.dev/doc/install)
 
     Optionals:
 
-    - [Orbstack](https://orbstack.dev/) (recommended) or Docker
+    * [Orbstack](https://orbstack.dev/) (recommended) or Docker
 
 1. Setup PostgreSQL
 
@@ -145,6 +145,102 @@ We use:
     ```bash
     ./postgresql-partition-manager run all
     ```
+
+</details>
+
+<details>
+<summary>Kubernetes</summary>
+
+The Kubernetes local development environment located in `scripts/kubernetesdev` is designed to facilitate Helm chart development and QA in containerized environment.
+
+Requirements:
+
+* Orbstack, with [Kubernetes environment enabled](https://docs.orbstack.dev/kubernetes/)
+
+Steps:
+
+1. Build application (from repository root directory)
+
+    ```bash
+    docker build . -t postgresql-partition-manager:dev
+    ```
+
+1. Build Helm chart dependencies
+
+    ```bash
+    cd scripts/kubernetesdev/
+    helm dependency build --skip-refresh
+    ```
+
+1. Set deployment parameters
+
+    ```bash
+    KUBERNETES_NAMESPACE=default # Replace with your namespace
+    HELM_RELEASE_NAME=main # Replace with an helm release
+    ```
+
+1. Trigger PostgreSQL and Postgresql Partition Manager deployments
+
+    Optional. Adjust deployment settings in `values.yaml`.
+
+    ```bash
+    helm upgrade ${HELM_RELEASE_NAME} . --install --values values.yaml
+    ```
+
+1. Trigger the PostgreSQL Partition Manager job manually
+
+    Set a Kubernetes job name:
+
+    ```bash
+    MANUAL_JOB=ppm-manually-triggered
+    ```
+
+    Trigger job manually:
+
+    ```bash
+    kubectl create job --namespace ${KUBERNETES_NAMESPACE} --from=cronjob/${HELM_RELEASE_NAME}-postgresql-partition-manager ${MANUAL_JOB}
+    ```
+
+    Check cronjob execution:
+
+    ```bash
+    kubectl describe job --namespace ${KUBERNETES_NAMESPACE} ${MANUAL_JOB}
+    ```
+
+    Check application logs
+
+    ```bash
+    # PostgreSQL logs
+    kubectl logs --namespace ${KUBERNETES_NAMESPACE} deployments/postgres
+
+    # PostgreSQL partition manager
+    kubectl logs --namespace ${KUBERNETES_NAMESPACE} --selector=job-name=${MANUAL_JOB}
+    ```
+
+    Clean up manual job
+
+    ```bash
+    kubectl delete job --namespace ${KUBERNETES_NAMESPACE} ${MANUAL_JOB}
+    ```
+
+1. Cleanup, delete PostgreSQL deployment
+
+    ```bash
+    helm uninstall ${HELM_RELEASE_NAME}
+    ```
+
+Useful commands:
+
+Connect to PostgreSQL
+
+```bash
+export PGHOST=localhost
+export PGPORT=$(kubectl get svc postgres -o jsonpath='{.spec.ports[0].nodePort}')
+export PGUSER=$(kubectl get secret postgres-credentials --template={{.data.user}} | base64 -D)
+export PGPASSWORD=$(kubectl get secret postgres-credentials --template={{.data.password}} | base64 -D)
+export PGDATABASE=$(kubectl get configmap postgres-configuration --template={{.data.database}})
+psql
+```
 
 </details>
 
