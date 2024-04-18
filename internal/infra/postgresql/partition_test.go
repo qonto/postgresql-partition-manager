@@ -66,12 +66,12 @@ func TestPartitionName(t *testing.T) {
 	testCases := []struct {
 		name      string
 		partition postgresql.PartitionConfiguration
-		time      time.Time
+		when      string
 		expected  postgresql.Partition
 	}{
 		{
-			name: "Daily partition",
-			partition: postgresql.PartitionConfiguration{
+			"Daily partition",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -80,8 +80,8 @@ func TestPartitionName(t *testing.T) {
 				PreProvisioned: 3,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time: time.Date(2024, 0o1, 30, 12, 53, 45, 100, time.UTC),
-			expected: postgresql.Partition{
+			"2024-01-30T12:53:45Z",
+			postgresql.Partition{
 				Schema:     "public",
 				Name:       "my_table_2024_01_30",
 				LowerBound: time.Date(2024, 0o1, 30, 0, 0, 0, 0, time.UTC),
@@ -89,8 +89,8 @@ func TestPartitionName(t *testing.T) {
 			},
 		},
 		{
-			name: "Monthly partition",
-			partition: postgresql.PartitionConfiguration{
+			"Monthly partition",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -99,8 +99,8 @@ func TestPartitionName(t *testing.T) {
 				PreProvisioned: 3,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time: time.Date(2024, 0o1, 30, 12, 53, 45, 100, time.UTC),
-			expected: postgresql.Partition{
+			"2024-01-30T12:53:45Z",
+			postgresql.Partition{
 				Schema:     "public",
 				Name:       "my_table_2024_01",
 				LowerBound: time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
@@ -108,8 +108,8 @@ func TestPartitionName(t *testing.T) {
 			},
 		},
 		{
-			name: "Weekly partition",
-			partition: postgresql.PartitionConfiguration{
+			"Weekly partition",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -118,8 +118,8 @@ func TestPartitionName(t *testing.T) {
 				PreProvisioned: 3,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time: time.Date(2024, 0o1, 30, 12, 53, 45, 100, time.UTC),
-			expected: postgresql.Partition{
+			"2024-01-30T12:53:45Z",
+			postgresql.Partition{
 				Schema:     "public",
 				Name:       "my_table_2024_w05",
 				LowerBound: time.Date(2024, 0o1, 29, 0, 0, 0, 0, time.UTC),
@@ -127,8 +127,8 @@ func TestPartitionName(t *testing.T) {
 			},
 		},
 		{
-			name: "Yearly partition",
-			partition: postgresql.PartitionConfiguration{
+			"Yearly partition",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -137,8 +137,8 @@ func TestPartitionName(t *testing.T) {
 				PreProvisioned: 3,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time: time.Date(2024, 0o1, 30, 12, 53, 45, 100, time.UTC),
-			expected: postgresql.Partition{
+			"2024-01-30T12:53:45Z",
+			postgresql.Partition{
 				Schema:     "public",
 				Name:       "my_table_2024",
 				LowerBound: time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
@@ -149,7 +149,11 @@ func TestPartitionName(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, _ := tc.partition.GeneratePartition(tc.time)
+			when, err := time.Parse(time.RFC3339, tc.when)
+			assert.NilError(t, err, "Time parse failed")
+
+			result, err := tc.partition.GeneratePartition(when)
+			assert.NilError(t, err, "Generate partition failed")
 			assert.Equal(t, tc.expected.Schema, result.Schema, "Schema don't match")
 			assert.Equal(t, tc.expected.Name, result.Name, "Table name don't match")
 			assert.Equal(t, tc.expected.LowerBound, result.LowerBound, "Lower bound don't match")
@@ -162,12 +166,12 @@ func TestRetentionTableNames(t *testing.T) {
 	testCases := []struct {
 		name      string
 		partition postgresql.PartitionConfiguration
-		time      time.Time
+		when      string
 		expected  []postgresql.Partition
 	}{
 		{
-			name: "Daily partition",
-			partition: postgresql.PartitionConfiguration{
+			"Daily partition",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -176,8 +180,8 @@ func TestRetentionTableNames(t *testing.T) {
 				PreProvisioned: 3,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time: time.Date(2024, 0o1, 0o3, 12, 53, 45, 100, time.UTC),
-			expected: []postgresql.Partition{
+			"2024-01-03T12:53:45Z",
+			[]postgresql.Partition{
 				{
 					Schema:      "public",
 					Name:        "my_table_2024_01_02",
@@ -206,8 +210,8 @@ func TestRetentionTableNames(t *testing.T) {
 			},
 		},
 		{
-			name: "Monthly partition",
-			partition: postgresql.PartitionConfiguration{
+			"Monthly partition",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -216,8 +220,8 @@ func TestRetentionTableNames(t *testing.T) {
 				PreProvisioned: 3,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time: time.Date(2024, 0o2, 25, 12, 53, 45, 100, time.UTC),
-			expected: []postgresql.Partition{
+			"2024-02-25T12:53:45Z",
+			[]postgresql.Partition{
 				{
 					Schema:      "public",
 					Name:        "my_table_2024_01",
@@ -240,8 +244,8 @@ func TestRetentionTableNames(t *testing.T) {
 			},
 		},
 		{
-			name: "Weekly partition",
-			partition: postgresql.PartitionConfiguration{
+			"Weekly partition",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -250,8 +254,8 @@ func TestRetentionTableNames(t *testing.T) {
 				PreProvisioned: 3,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time: time.Date(2024, 0o1, 9, 12, 53, 45, 100, time.UTC),
-			expected: []postgresql.Partition{
+			"2024-01-09T12:53:45Z",
+			[]postgresql.Partition{
 				{
 					Schema:      "public",
 					Name:        "my_table_2024_w01",
@@ -268,8 +272,8 @@ func TestRetentionTableNames(t *testing.T) {
 			},
 		},
 		{
-			name: "Yearly partition",
-			partition: postgresql.PartitionConfiguration{
+			"Yearly partition",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -278,8 +282,8 @@ func TestRetentionTableNames(t *testing.T) {
 				PreProvisioned: 3,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time: time.Date(2024, 0o1, 9, 12, 53, 45, 100, time.UTC),
-			expected: []postgresql.Partition{
+			"2024-01-09T12:53:45Z",
+			[]postgresql.Partition{
 				{
 					Schema:      "public",
 					Name:        "my_table_2023",
@@ -296,8 +300,8 @@ func TestRetentionTableNames(t *testing.T) {
 			},
 		},
 		{
-			name: "No retention",
-			partition: postgresql.PartitionConfiguration{
+			"No retention",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -306,15 +310,17 @@ func TestRetentionTableNames(t *testing.T) {
 				PreProvisioned: 3,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time:     time.Date(2024, 0o1, 9, 12, 53, 45, 100, time.UTC),
-			expected: []postgresql.Partition{},
+			"2024-01-09T12:53:45Z",
+			[]postgresql.Partition{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tables, _ := tc.partition.GetRetentionPartitions(tc.time)
+			when, err := time.Parse(time.RFC3339, tc.when)
+			assert.NilError(t, err, "Time parse failed")
 
+			tables, _ := tc.partition.GetRetentionPartitions(when)
 			assert.DeepEqual(t, tables, tc.expected)
 		})
 	}
@@ -324,12 +330,12 @@ func TestPreProvisionedTableNames(t *testing.T) {
 	testCases := []struct {
 		name      string
 		partition postgresql.PartitionConfiguration
-		time      time.Time
+		when      string
 		expected  []postgresql.Partition
 	}{
 		{
-			name: "Daily partition",
-			partition: postgresql.PartitionConfiguration{
+			"Daily partition",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -338,8 +344,8 @@ func TestPreProvisionedTableNames(t *testing.T) {
 				PreProvisioned: 4,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time: time.Date(2024, 0o1, 29, 12, 53, 45, 100, time.UTC),
-			expected: []postgresql.Partition{
+			"2024-01-29T12:53:45Z",
+			[]postgresql.Partition{
 				{
 					Schema:      "public",
 					Name:        "my_table_2024_01_30",
@@ -368,8 +374,8 @@ func TestPreProvisionedTableNames(t *testing.T) {
 			},
 		},
 		{
-			name: "Monthly partition",
-			partition: postgresql.PartitionConfiguration{
+			"Monthly partition",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -378,8 +384,8 @@ func TestPreProvisionedTableNames(t *testing.T) {
 				PreProvisioned: 3,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time: time.Date(2023, 11, 29, 12, 53, 45, 100, time.UTC),
-			expected: []postgresql.Partition{
+			"2023-11-29T12:53:45Z",
+			[]postgresql.Partition{
 				{
 					Schema:      "public",
 					Name:        "my_table_2023_12",
@@ -402,8 +408,8 @@ func TestPreProvisionedTableNames(t *testing.T) {
 			},
 		},
 		{
-			name: "Weekly partition",
-			partition: postgresql.PartitionConfiguration{
+			"Weekly partition",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -412,8 +418,8 @@ func TestPreProvisionedTableNames(t *testing.T) {
 				PreProvisioned: 2,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time: time.Date(2023, 12, 20, 12, 53, 45, 100, time.UTC),
-			expected: []postgresql.Partition{
+			"2023-12-20T12:53:45Z",
+			[]postgresql.Partition{
 				{
 					Schema:      "public",
 					Name:        "my_table_2023_w52",
@@ -430,8 +436,8 @@ func TestPreProvisionedTableNames(t *testing.T) {
 			},
 		},
 		{
-			name: "Yearly partition",
-			partition: postgresql.PartitionConfiguration{
+			"Yearly partition",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -440,8 +446,8 @@ func TestPreProvisionedTableNames(t *testing.T) {
 				PreProvisioned: 2,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time: time.Date(2023, 12, 20, 12, 53, 45, 100, time.UTC),
-			expected: []postgresql.Partition{
+			"2023-12-10T12:53:45Z",
+			[]postgresql.Partition{
 				{
 					Schema:      "public",
 					Name:        "my_table_2024",
@@ -458,8 +464,8 @@ func TestPreProvisionedTableNames(t *testing.T) {
 			},
 		},
 		{
-			name: "No PreProvisioned",
-			partition: postgresql.PartitionConfiguration{
+			"No PreProvisioned",
+			postgresql.PartitionConfiguration{
 				Schema:         "public",
 				Table:          "my_table",
 				PartitionKey:   "created_at",
@@ -468,15 +474,17 @@ func TestPreProvisionedTableNames(t *testing.T) {
 				PreProvisioned: 0,
 				CleanupPolicy:  postgresql.DropCleanupPolicy,
 			},
-			time:     time.Date(2023, 12, 20, 12, 53, 45, 100, time.UTC),
-			expected: []postgresql.Partition{},
+			"2023-12-20T12:53:45Z",
+			[]postgresql.Partition{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tables, _ := tc.partition.GetPreProvisionedPartitions(tc.time)
+			when, err := time.Parse(time.RFC3339, tc.when)
+			assert.NilError(t, err, "Time parse failed")
 
+			tables, _ := tc.partition.GetPreProvisionedPartitions(when)
 			assert.DeepEqual(t, tables, tc.expected)
 		})
 	}
