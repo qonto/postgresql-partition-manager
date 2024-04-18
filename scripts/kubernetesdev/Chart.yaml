@@ -1,0 +1,13 @@
+---
+apiVersion: v2
+type: application
+name: postgresql-partition-manager
+description: Manages PostgreSQL partition
+
+version: 0.0.0
+appVersion: 0.0.0
+
+dependencies:
+  - name: postgresql-partition-manager
+    version: "~0"
+    repository: "file://../../configs/helm"
