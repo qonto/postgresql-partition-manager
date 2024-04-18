@@ -1,0 +1,136 @@
+---
+#  yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: cronjob tests
+templates:
+  - cronjob.yaml
+tests:
+  - it: render default deployment
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-postgresql-partition-manager
+      - equal:
+          path: spec.suspend
+          value: false
+      - equal:
+          path: spec.schedule
+          value: "10 0 * * *"
+      - equal:
+          path: spec.timeZone
+          value: "Etc/UTC"
+      - equal:
+          path: spec.successfulJobsHistoryLimit
+          value: 1
+      - equal:
+          path: spec.failedJobsHistoryLimit
+          value: 1
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Forbid
+      - equal:
+          path: spec.startingDeadlineSeconds
+          value: 21600
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.restartPolicy
+          value: Never
+      - equal:
+          path: spec.jobTemplate.spec.backoffLimit
+          value: 0
+      - equal:
+          path: spec.jobTemplate.spec.ttlSecondsAfterFinished
+          value: 14400
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.terminationGracePeriodSeconds
+          value: 60
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.activeDeadlineSeconds
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.automountServiceAccountToken
+          value: false
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].image
+          value: public.ecr.aws/qonto/postgresql-partition-manager:0.0.0
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.containers[0].command
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args
+          value: ["run", "all"]
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].resources.requests.cpu
+          value: 10m
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].resources.requests.memory
+          value: 50Mi
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].resources.limits.memory
+          value: 50Mi
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+  - it: render disabled cronjob
+    values:
+      - ./values/with_suspend.yaml
+    asserts:
+      - equal:
+          path: spec.suspend
+          value: true
+  - it: render with credentials in secret
+    values:
+      - ./values/with_credentials_in_secret.yaml
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env[0].name
+          value: PGUSER
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
+          value: secret-containing-user
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.key
+          value: user
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env[1].name
+          value: PGPASSWORD
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env[1].valueFrom.secretKeyRef.name
+          value: secret-containing-password
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env[1].valueFrom.secretKeyRef.key
+          value: password
+
+  - it: render disabled cronjob
+    values:
+      - ./values/with_pod_settings.yaml
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env[0].name
+          value: POSTGRESQL_PARTITION_MANAGER_DEBUG
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env[0].value
+          value: "true"
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values[0]
+          value: linux
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.nodeSelector.disktype
+          value: ssd
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.tolerations[0].effect
+          value: NoSchedule
+  - it: render with additional labels
+    values:
+      - ./values/with_additional_labels.yaml
+    asserts:
+      - equal:
+          path: metadata.labels.label1
+          value: value1
+      - equal:
+          path: metadata.labels.label2
+          value: value2

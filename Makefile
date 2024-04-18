@@ -27,6 +27,14 @@ install: build
 bats-test:
 	cd scripts/bats && bats *.bats
 
+.PHONY: helm-test
+helm-test:
+	helm unittest configs/helm
+
+.PHONY: kubeconform-test
+kubeconform-test:
+	./scripts/kubeconform-test.sh configs/helm
+
 .PHONY: test
 test:
 	go test -race -v ./... -coverprofile=coverage.txt -covermode atomic

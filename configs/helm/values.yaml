@@ -1,0 +1,81 @@
+---
+# Default values for postgresql-partition-manager
+
+image:
+  repository: public.ecr.aws/qonto/postgresql-partition-manager
+  pullPolicy: IfNotPresent
+  tag: ""  # Defined by chart appVersion parameter
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+#  fsGroup: 2000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+#  capabilities:
+#    drop:
+#    - ALL
+#  runAsNonRoot: true
+#  runAsUser: 1000
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Set additional labels on all resources
+additionalLabels: {}
+
+cronjob:
+  suspend: false
+  timeZone: "Etc/UTC"
+  schedule: "10 0 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  startingDeadlineSeconds: 21600  # This means if the job misses its scheduled time, the system has up to 6 hours to attempt to start the job before it counts as a missed start
+  restartPolicy: Never
+  backoffLimit: 0  # 0 means no retry
+  activeDeadlineSeconds: # Time limit after which the pod will be terminated (SIGTERM)
+  ttlSecondsAfterFinished: 14400  # 4 hours
+  terminationGracePeriodSeconds: 60
+  automountServiceAccountToken: false
+  command: []
+  args:
+    - run
+    - all
+  resources:
+    requests:
+      cpu: 10m
+      memory: 50Mi
+    limits:
+      memory: 50Mi
+
+configuration:
+#  partitions:
+#    by_date:
+#      schema: public
+#      table: by_date
+#      partitionKey: created_at
+#      interval: yearly
+#      retention: 7
+#      preProvisioned: 7
+#      cleanupPolicy: drop
