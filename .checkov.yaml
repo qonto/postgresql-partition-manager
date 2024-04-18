@@ -1,0 +1,7 @@
+---
+skip-check:
+  - CKV_SECRET_4  # We have password in our configuration templates
+  - CKV_DOCKER_2  # We don't define healthcheck for our containers because it's a CLI
+
+skip-path:
+  - scripts/kubernetesdev  # Exclude kubernetes development environment, mostly for PostgreSQL
