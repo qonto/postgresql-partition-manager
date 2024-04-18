@@ -1,0 +1,33 @@
+---
+
+# Postgres credentials are stored in a secret mounts by PostgreSQL and Partition manager
+postgresDatabase: development
+postgresUser: root
+postgresPassword: hackme
+
+postgresql-partition-manager:
+  image:
+    repository: postgresql-partition-manager  # Override to use local registry
+    tag: dev  # Override to use local tag
+
+  cronjob:
+    postgresqlUserSecret:
+      ref: postgresql-credentials
+      key: user
+    postgresqlPasswordSecret:
+      ref: postgresql-password
+      key: password
+
+  configuration:
+    debug: true
+    connection-url: postgres://postgres/development
+    log-format: text
+    partitions:
+      by_date:
+        schema: public
+        table: by_date
+        partitionKey: created_at
+        interval: yearly
+        retention: 1
+        preProvisioned: 1
+        cleanupPolicy: drop
