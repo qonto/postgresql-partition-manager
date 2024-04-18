@@ -11,8 +11,8 @@ func TestParseBounds(t *testing.T) {
 	testCases := []struct {
 		name       string
 		partition  Partition
-		lowerbound time.Time
-		upperBound time.Time
+		lowerbound string
+		upperBound string
 	}{
 		{
 			"Date bounds",
@@ -22,8 +22,8 @@ func TestParseBounds(t *testing.T) {
 				LowerBound: "2024-01-01",
 				UpperBound: "2025-03-02",
 			},
-			time.Date(2024, 1, 1, 0, 0, 0, 0, time.Now().UTC().Location()),
-			time.Date(2025, 3, 2, 0, 0, 0, 0, time.Now().UTC().Location()),
+			"2024-01-01T00:00:00Z",
+			"2025-03-02T00:00:00Z",
 		},
 		{
 			"Datetime bounds",
@@ -33,8 +33,8 @@ func TestParseBounds(t *testing.T) {
 				LowerBound: "2024-01-01 10:00:00",
 				UpperBound: "2025-02-03 12:53:00",
 			},
-			time.Date(2024, 1, 1, 10, 0, 0, 0, time.Now().UTC().Location()),
-			time.Date(2025, 2, 3, 12, 53, 0, 0, time.Now().UTC().Location()),
+			"2024-01-01T10:00:00Z",
+			"2025-02-03T12:53:00Z",
 		},
 		{
 			"UUIDv7 bounds",
@@ -44,8 +44,8 @@ func TestParseBounds(t *testing.T) {
 				LowerBound: "018cc251-f400-7100-0000-000000000000", // UUIDv7: 2024-01-01
 				UpperBound: "018cc778-5000-7100-0000-000000000000", // UUIDv7: 2024-01-02
 			},
-			time.Date(2024, 1, 1, 0, 0, 0, 0, time.Now().UTC().Location()),
-			time.Date(2024, 1, 2, 0, 0, 0, 0, time.Now().UTC().Location()),
+			"2024-01-01T00:00:00Z",
+			"2024-01-02T00:00:00Z",
 		},
 		{
 			"Native Time.time bounds",
@@ -55,18 +55,24 @@ func TestParseBounds(t *testing.T) {
 				LowerBound: time.Date(2024, 1, 1, 10, 12, 5, 0, time.Now().UTC().Location()),
 				UpperBound: time.Date(2025, 2, 3, 12, 53, 35, 0, time.Now().UTC().Location()),
 			},
-			time.Date(2024, 1, 1, 10, 12, 5, 0, time.Now().UTC().Location()),
-			time.Date(2025, 2, 3, 12, 53, 35, 0, time.Now().UTC().Location()),
+			"2024-01-01T10:12:05Z",
+			"2025-02-03T12:53:35Z",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			expectedLowerbound, err := time.Parse(time.RFC3339, tc.lowerbound)
+			assert.NilError(t, err, "LowerBound parsing failed")
+
+			expectedUpperBound, err := time.Parse(time.RFC3339, tc.upperBound)
+			assert.NilError(t, err, "Upperbound parsing failed")
+
 			lowerBound, upperBound, err := parseBounds(tc.partition)
 
 			assert.NilError(t, err, "Bounds parsing should succeed")
-			assert.Equal(t, lowerBound, tc.lowerbound, "LowerBound mismatch")
-			assert.Equal(t, upperBound, tc.upperBound, "UpperBound mismatch")
+			assert.Equal(t, lowerBound, expectedLowerbound, "LowerBound mismatch")
+			assert.Equal(t, upperBound, expectedUpperBound, "UpperBound mismatch")
 		})
 	}
 }
