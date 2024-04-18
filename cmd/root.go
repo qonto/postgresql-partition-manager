@@ -42,7 +42,7 @@ func NewRootCommand() (*cobra.Command, error) {
 	cmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $HOME/postgresql-partition-manager.yaml)")
 	cmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug mode")
 	cmd.PersistentFlags().StringVarP(&logFormat, "log-format", "l", "json", "Log format (text or json)")
-	cmd.PersistentFlags().StringVarP(&connectionURL, "connection-url", "u", "", "Path under which to expose metrics")
+	cmd.PersistentFlags().StringVarP(&connectionURL, "connection-url", "u", "", "Database connection string")
 	cmd.PersistentFlags().StringVarP(&lockTimeout, "lock-timeout", "", "100", "Set lock_timeout (ms)")
 	cmd.PersistentFlags().StringVarP(&statementTimeout, "statement-timeout", "", "3000", "Set statement_timeout (ms)")
 
