@@ -133,3 +133,25 @@ jobs:
           && tar -C /usr/local/bin/ -xzvf /tmp/kubeconform.tar.gz
       - name: Run Kubeconform test
         run: make kubeconform-test
+
+  debian:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Set up QEMU for ARM64 build
+        uses: docker/setup-qemu-action@v3
+      - uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean --skip=publish --skip=docker --snapshot
+        env:
+          GORELEASER_CURRENT_TAG: 0.0.0
+      - name: Run Debian package tests
+        run: make debian-test-ci
