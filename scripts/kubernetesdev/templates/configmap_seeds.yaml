@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-seeds
+  labels:
+    app: postgres
+data:
+  seeds: |
+    \c {{ .Values.postgresDatabase }};
+
+    CREATE TABLE by_date (
+      id              BIGSERIAL,
+      temperature     INT,
+      created_at      DATE NOT NULL
+    ) PARTITION BY RANGE (created_at);

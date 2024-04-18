@@ -179,9 +179,13 @@ Steps:
     HELM_RELEASE_NAME=main # Replace with an helm release
     ```
 
-1. Trigger PostgreSQL and Postgresql Partition Manager deployments
+1. Optional. Adjust deployment settings in `values.yaml`.
 
-    Optional. Adjust deployment settings in `values.yaml`.
+    ```bash
+    vim values.yaml
+    ```
+
+1. Trigger PostgreSQL and Postgresql Partition Manager deployments
 
     ```bash
     helm upgrade ${HELM_RELEASE_NAME} . --install --values values.yaml
@@ -235,7 +239,7 @@ Connect to PostgreSQL
 
 ```bash
 export PGHOST=localhost
-export PGPORT=$(kubectl get svc postgres -o jsonpath='{.spec.ports[0].nodePort}')
+export PGPORT=$(kubectl get svc postgres-nodeport -o jsonpath='{.spec.ports[0].nodePort}')
 export PGUSER=$(kubectl get secret postgres-credentials --template={{.data.user}} | base64 -D)
 export PGPASSWORD=$(kubectl get secret postgres-credentials --template={{.data.password}} | base64 -D)
 export PGDATABASE=$(kubectl get configmap postgres-configuration --template={{.data.database}})
