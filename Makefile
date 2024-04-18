@@ -35,6 +35,19 @@ helm-test:
 kubeconform-test:
 	./scripts/kubeconform-test.sh configs/helm
 
+.PHONY: goreleaser-check
+goreleaser-check:
+	goreleaser check
+
+debian-test:
+	GORELEASER_CURRENT_TAG=0.0.0 goreleaser release --clean --skip-publish --skip-docker --snapshot
+	docker build configs/debian/tests -t test
+	docker run -v ./dist/postgresql-partition-manager_0.0.1~next_$(ARCHITECTURE).deb:/mnt/postgresql-partition-manager.deb test
+
+debian-test-ci:
+	docker build configs/debian/tests -t test
+	docker run -v ./dist/postgresql-partition-manager_0.0.1~next_amd64.deb:/mnt/postgresql-partition-manager.deb test
+
 .PHONY: test
 test:
 	go test -race -v ./... -coverprofile=coverage.txt -covermode atomic
@@ -46,4 +59,4 @@ lint:
 	golangci-lint run --verbose --timeout 2m
 
 .PHONY: all-tests
-all-tests: test goreleaser-check
+all-tests: test helm-test kubeconform-test goreleaser-check
