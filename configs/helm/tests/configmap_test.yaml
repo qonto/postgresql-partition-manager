@@ -1,0 +1,19 @@
+---
+#  yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: configmap tests
+templates:
+  - configmap.yaml
+tests:
+  - it: render default deployment
+    asserts:
+      - isKind:
+          of: ConfigMap
+  - it: render with partition configuration
+    values:
+      - ./values/with_partition_configuration.yaml
+    asserts:
+      - equal:
+          path: data.configuration
+          value: |
+            connection-url: postgres://postgres/development
+            debug: true
