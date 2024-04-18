@@ -93,8 +93,8 @@ jobs:
         with:
           support-path: ${{ github.workspace }}/test/bats/lib/bats-support
           assert-path: ${{ github.workspace }}/test/bats/lib/bats-assert
-          file-install: false # Unused
-          detik-install: false # Unused
+          file-install: false  # Unused
+          detik-install: false  # Unused
 
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -107,3 +107,29 @@ jobs:
 
       - name: Run bats
         run: make bats-test
+
+  helm:
+    name: helm
+    runs-on: ubuntu-latest
+    env:
+      HELM_UNITTEST_VERSION: v0.3.5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install helm-unittest
+        run: helm plugin install --version $HELM_UNITTEST_VERSION https://github.com/helm-unittest/helm-unittest.git
+      - name: Run Helm test
+        run: make helm-test
+
+  kubeconform:
+    name: kubeconform
+    runs-on: ubuntu-latest
+    env:
+      KUBECONFORM_VERSION: 0.6.2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kubeconform
+        run: |
+          curl -sSLo /tmp/kubeconform.tar.gz "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+          && tar -C /usr/local/bin/ -xzvf /tmp/kubeconform.tar.gz
+      - name: Run Kubeconform test
+        run: make kubeconform-test

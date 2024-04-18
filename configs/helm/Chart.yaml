@@ -1,0 +1,20 @@
+---
+apiVersion: v2
+type: application
+
+# version and appVersion values are overrided during build step
+version: 0.0.0
+appVersion: 0.0.0
+
+name: postgresql-partition-manager
+description: Manages PostgreSQL partition
+home: https://github.com/qonto/postgresql-partition-manager
+sources:
+  - https://github.com/qonto/postgresql-partition-manager
+annotations:
+  artifacthub.io/category: database
+  artifacthub.io/links: |
+    - name: Chart Source
+      url: https://github.com/qonto/postgresql-partition-manager/tree/main/configs/helm
+keywords:
+  - postgresql

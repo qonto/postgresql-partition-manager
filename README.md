@@ -38,6 +38,115 @@ PPM will process all referenced partitions and exit with a non-zero code if it d
 PPM is available as a Docker image, Debian package, and Binary.
 
 <details>
+<summary>Helm</summary>
+
+1. Create a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret) containing PostgreSQL password
+
+    While database credentials could be passed in `connection-url` configuration parameter or `PGUSER` and `PGPASSWORD` environment variables.
+
+    We recommend storing credentials in Kubernetes secret and referring to the secret via the `cronjob.postgresqlPasswordSecret` Helm chart parameter.
+
+    Example of creating secret using `kubectl`:
+
+    ```bash
+    kubectl create secret generic postgresql-credentials --from-literal=password=replace_with_your_postgresql_password
+    ```
+
+    We recommend the [Kubernetes Secrets Store CSI driver](https://secrets-store-csi-driver.sigs.k8s.io) for production deployment.
+
+    The `cronjob.postgresqlUserSecret` parameter could be used to pass PostgreSQL user, but don't recommend to store username as a secret because it makes audits more difficult and significantly increases security.
+
+1. Create a configuration file
+
+    Copy the following template:
+
+    ```bash
+    cat > values.yaml
+    cronjob:
+      postgresqlPasswordSecret:
+        ref: postgresql-credentials # Specify the Kubernetes secret name containing the PostgreSQL credentials
+        key: password # Specify the key containing the password
+
+    configuration:
+      debug: false
+
+      connection-url: postgres://my_username@postgres/my_app # TODO replace with your database connection parameters
+
+      partitions:
+        #my_partition:
+        #  schema: public
+        #  table: logs
+        #  partitionKey: created_at
+        #  interval: daily
+        #  retention: 30
+        #  preProvisioned: 7
+        #  cleanupPolicy: drop
+    EOF
+    ```
+
+    Edit partitioning settings in `partitions`:
+
+    ```bash
+    vim values.yaml
+    ```
+
+1. Deploy the chart
+
+    Set PPM version to deploy and Kubernetes target namespace:
+
+    ```bash
+    POSTGRESQL_PARTION_MANAGER=0.1.0 # Replace with latest version
+    KUBERNETES_NAMESPACE=default # Replace with your namespace
+    HELM_RELEASE_NAME=main # Replace with an helm release
+    ```
+
+    Then deploy it:
+
+    ```bash
+    helm upgrade \
+    ${HELM_RELEASE_NAME} \
+    oci://public.ecr.aws/qonto/postgresql-partition-manager-chart \
+    --version ${POSTGRESQL_PARTION_MANAGER} \
+    --install \
+    --namespace ${KUBERNETES_NAMESPACE}
+    --values
+    ```
+
+1. Trigger job manually and verify application logs
+
+    Set a Kubernetes job name:
+
+    ```bash
+    MANUAL_JOB=ppm-manually-triggered
+    ```
+
+    Trigger job manually:
+
+    ```bash
+    kubectl create job --namespace ${KUBERNETES_NAMESPACE} --from=cronjob/${HELM_RELEASE_NAME}-postgresql-partition-manager ${MANUAL_JOB}
+    ```
+
+    Check cronjob execution:
+
+    ```bash
+    kubectl describe job --namespace ${KUBERNETES_NAMESPACE} ${MANUAL_JOB}
+    ```
+
+    Check application logs
+
+    ```bash
+    kubectl logs --namespace ${KUBERNETES_NAMESPACE} --selector=job-name=${MANUAL_JOB}
+    ```
+
+    Clean up manual job
+
+    ```bash
+    kubectl delete job --namespace ${KUBERNETES_NAMESPACE} ${MANUAL_JOB}
+    ```
+
+</details>
+
+<details>
 <summary>Docker image</summary>
 
 1. Generate configuration file in `postgresql-partition-manager.yaml` from the docker image
@@ -63,7 +172,7 @@ PPM is available as a Docker image, Debian package, and Binary.
     POSTGRESQL_PARTITION_MANAGER_VERSION=0.1.0 # Replace with latest version
 
     PACKAGE_NAME=postgresql_partition_manager_${POSTGRESQL_PARTITION_MANAGER_VERSION}_$(uname -m).deb
-    wget https://github.com/qonto/postgresql-partition-manager/releases/download/${PROMETHEUS_RDS_EXPORTER_VERSION}/${PACKAGE_NAME}
+    wget https://github.com/qonto/postgresql-partition-manager/releases/download/${POSTGRESQL_PARTION_MANAGER}/${PACKAGE_NAME}
     ```
 
 1. Install package

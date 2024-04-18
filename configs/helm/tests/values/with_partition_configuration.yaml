@@ -1,0 +1,4 @@
+---
+configuration:
+  debug: true
+  connection-url: postgres://postgres/development
