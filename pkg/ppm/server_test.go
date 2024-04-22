@@ -51,7 +51,7 @@ func TestServerRequirements(t *testing.T) {
 			logger, postgreSQLMock := getTestMocks(t)
 			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, nil)
 
-			postgreSQLMock.On("GetVersion").Return(tc.serverVersion, nil).Once()
+			postgreSQLMock.On("GetEngineVersion").Return(tc.serverVersion, nil).Once()
 			postgreSQLMock.On("GetServerTime").Return(tc.serverTime, nil).Once()
 
 			err := checker.CheckServerRequirements()

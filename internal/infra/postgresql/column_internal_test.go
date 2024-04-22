@@ -1,7 +1,6 @@
 package postgresql
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/pashagolub/pgxmock/v3"
@@ -10,24 +9,20 @@ import (
 )
 
 func TestGetColumn(t *testing.T) {
-	column := Column{
-		Schema: "public",
-		Table:  "my_table",
-		Name:   "my_column",
-	}
+	schema := "public"
+	table := "my_table"
+	column := "my_column"
 
 	const query = `SELECT data_type as columnType FROM information_schema.columns WHERE table_schema = \$1 AND table_name = \$2 AND column_name = \$3`
 
 	mock, err := pgxmock.NewConn()
 	if err != nil {
-		fmt.Println("ERROR: Fail to initialize PostgreSQL mock: %w", err)
-		panic(err)
+		t.Fatalf("ERROR: Fail to initialize PostgreSQL mock: %s", err)
 	}
 
 	logger, err := logger.New(false, "text")
 	if err != nil {
-		fmt.Println("ERROR: Fail to initialize logger: %w", err)
-		panic(err)
+		t.Fatalf("ERROR: Fail to initialize logger: %s", err)
 	}
 
 	p := New(*logger, mock)
@@ -44,6 +39,11 @@ func TestGetColumn(t *testing.T) {
 		},
 		{
 			"Date time",
+			"timestamp",
+			DateTimeColumnType,
+		},
+		{
+			"Date time without time zone",
 			"timestamp without time zone",
 			DateTimeColumnType,
 		},
@@ -56,8 +56,8 @@ func TestGetColumn(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mock.ExpectQuery(query).WithArgs(column.Schema, column.Table, column.Name).WillReturnRows(mock.NewRows([]string{"columnType"}).AddRow(tc.postgreSQLcolumn))
-			dataType, err := p.getColumnDataType(column)
+			mock.ExpectQuery(query).WithArgs(schema, table, column).WillReturnRows(mock.NewRows([]string{"columnType"}).AddRow(tc.postgreSQLcolumn))
+			dataType, err := p.GetColumnDataType(schema, table, column)
 
 			assert.Nil(t, err, "getColumnDataType should succeed")
 			assert.Equal(t, dataType, tc.dataType, "Column type should match")

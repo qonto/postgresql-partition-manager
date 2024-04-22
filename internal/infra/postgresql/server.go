@@ -11,10 +11,15 @@ import (
 
 var ErrUnkownServerVersion = errors.New("could not find server version")
 
-func (p *PostgreSQL) GetVersion() (int64, error) {
-	serverVersionStr := p.db.PgConn().ParameterStatus("server_version")
-	serverVersionStr = regexp.MustCompile(`^[0-9]+`).FindString(serverVersionStr)
+func (p *Postgres) GetEngineVersion() (int64, error) {
+	var serverVersionRaw string
 
+	err := p.conn.QueryRow(context.Background(), "SHOW server_version").Scan(&serverVersionRaw)
+	if err != nil {
+		return 0, fmt.Errorf("could not get server version: %w", err)
+	}
+
+	serverVersionStr := regexp.MustCompile(`^[0-9]+`).FindString(serverVersionRaw)
 	if serverVersionStr == "" {
 		return 0, ErrUnkownServerVersion
 	}
@@ -27,10 +32,8 @@ func (p *PostgreSQL) GetVersion() (int64, error) {
 	return serverVersion, nil
 }
 
-func (p *PostgreSQL) GetServerTime() (time.Time, error) {
-	var serverTime time.Time
-
-	err := p.db.QueryRow(context.Background(), "SELECT NOW() AT TIME ZONE 'UTC' as serverTime").Scan(&serverTime)
+func (p *Postgres) GetServerTime() (serverTime time.Time, err error) {
+	err = p.conn.QueryRow(context.Background(), "SELECT NOW() AT TIME ZONE 'UTC' as serverTime").Scan(&serverTime)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("could not get server time: %w", err)
 	}
