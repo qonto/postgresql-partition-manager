@@ -1,491 +1,158 @@
+//nolint:golint,wsl,goconst
 package postgresql_test
 
 import (
+	"fmt"
 	"testing"
-	"time"
 
+	"github.com/pashagolub/pgxmock/v3"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestPartitionAttributes(t *testing.T) {
-	testCases := []struct {
-		name                string
-		partition           postgresql.Partition
-		expectedName        string
-		expectedTable       postgresql.Table
-		expectedParentTable postgresql.Table
-	}{
-		{
-			name: "Public schema",
-			partition: postgresql.Partition{
-				ParentTable: "my_table",
-				Schema:      "public",
-				Name:        "my_table_2024_12_25",
-			},
-			expectedName: "public.my_table_2024_12_25",
-			expectedTable: postgresql.Table{
-				Schema: "public",
-				Name:   "my_table_2024_12_25",
-			},
-			expectedParentTable: postgresql.Table{
-				Schema: "public",
-				Name:   "my_table",
-			},
-		},
-		{
-			name: "Dashed table",
-			partition: postgresql.Partition{
-				ParentTable: "my-table",
-				Schema:      "api",
-				Name:        "my-table_2024_w01",
-			},
-			expectedName: "api.my-table_2024_w01",
-			expectedTable: postgresql.Table{
-				Schema: "api",
-				Name:   "my-table_2024_w01",
-			},
-			expectedParentTable: postgresql.Table{
-				Schema: "api",
-				Name:   "my-table",
-			},
-		},
-	}
+func generateTable(t *testing.T) (schema, table, fullQualifiedTable, parent string) {
+	t.Helper()
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.partition.QualifiedName(), tc.expectedName, "Qualified name don't match")
-			assert.Equal(t, tc.partition.String(), tc.expectedName, "Partition name don't match")
-			assert.Equal(t, tc.partition.ToTable(), tc.expectedTable, "Table don't match")
-			assert.Equal(t, tc.partition.GetParentTable(), tc.expectedParentTable, "Parent table don't match")
-		})
-	}
+	schema = "public"
+	table = "my_table"
+	fullQualifiedTable = fmt.Sprintf("%s.%s", schema, table)
+	parent = "my_parent_table"
+
+	return
 }
 
-func TestPartitionName(t *testing.T) {
-	testCases := []struct {
-		name      string
-		partition postgresql.PartitionConfiguration
-		when      string
-		expected  postgresql.Partition
-	}{
-		{
-			"Daily partition",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.DailyInterval,
-				Retention:      7,
-				PreProvisioned: 3,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2024-01-30T12:53:45Z",
-			postgresql.Partition{
-				Schema:     "public",
-				Name:       "my_table_2024_01_30",
-				LowerBound: time.Date(2024, 0o1, 30, 0, 0, 0, 0, time.UTC),
-				UpperBound: time.Date(2024, 0o1, 31, 0, 0, 0, 0, time.UTC),
-			},
-		},
-		{
-			"Monthly partition",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.MonthlyInterval,
-				Retention:      7,
-				PreProvisioned: 3,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2024-01-30T12:53:45Z",
-			postgresql.Partition{
-				Schema:     "public",
-				Name:       "my_table_2024_01",
-				LowerBound: time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-				UpperBound: time.Date(2024, 0o2, 0o1, 0, 0, 0, 0, time.UTC),
-			},
-		},
-		{
-			"Weekly partition",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.WeeklyInterval,
-				Retention:      7,
-				PreProvisioned: 3,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2024-01-30T12:53:45Z",
-			postgresql.Partition{
-				Schema:     "public",
-				Name:       "my_table_2024_w05",
-				LowerBound: time.Date(2024, 0o1, 29, 0, 0, 0, 0, time.UTC),
-				UpperBound: time.Date(2024, 0o2, 0o5, 0, 0, 0, 0, time.UTC),
-			},
-		},
-		{
-			"Yearly partition",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.YearlyInterval,
-				Retention:      7,
-				PreProvisioned: 3,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2024-01-30T12:53:45Z",
-			postgresql.Partition{
-				Schema:     "public",
-				Name:       "my_table_2024",
-				LowerBound: time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-				UpperBound: time.Date(2025, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-			},
-		},
-	}
+func TestIsPartitionAttached(t *testing.T) {
+	schema, table, fullQualifiedTable, _ := generateTable(t)
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			when, err := time.Parse(time.RFC3339, tc.when)
-			assert.NilError(t, err, "Time parse failed")
+	mock, p := setupMock(t, pgxmock.QueryMatcherRegexp)
+	query := "SELECT EXISTS"
 
-			result, err := tc.partition.GeneratePartition(when)
-			assert.NilError(t, err, "Generate partition failed")
-			assert.Equal(t, tc.expected.Schema, result.Schema, "Schema don't match")
-			assert.Equal(t, tc.expected.Name, result.Name, "Table name don't match")
-			assert.Equal(t, tc.expected.LowerBound, result.LowerBound, "Lower bound don't match")
-			assert.Equal(t, tc.expected.UpperBound, result.UpperBound, "Upper bound don't match")
-		})
-	}
+	mock.ExpectQuery(query).WithArgs(fullQualifiedTable).WillReturnRows(mock.NewRows([]string{"EXISTS"}).AddRow(true))
+	exists, err := p.IsPartitionAttached(schema, table)
+	assert.Nil(t, err, "IsPartitionAttached should succeed")
+	assert.True(t, exists, "Table should be attached")
+
+	mock.ExpectQuery(query).WithArgs(fullQualifiedTable).WillReturnRows(mock.NewRows([]string{"EXISTS"}).AddRow(false))
+	exists, err = p.IsPartitionAttached(schema, table)
+	assert.Nil(t, err, "IsPartitionAttached should succeed")
+	assert.False(t, exists, "Table should not be attached")
+
+	mock.ExpectQuery(query).WithArgs(fullQualifiedTable).WillReturnError(ErrPostgreSQLConnectionFailure)
+	_, err = p.IsPartitionAttached(schema, table)
+	assert.Error(t, err, "IsPartitionAttached should fail")
 }
 
-func TestRetentionTableNames(t *testing.T) {
-	testCases := []struct {
-		name      string
-		partition postgresql.PartitionConfiguration
-		when      string
-		expected  []postgresql.Partition
-	}{
-		{
-			"Daily partition",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.DailyInterval,
-				Retention:      4,
-				PreProvisioned: 3,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2024-01-03T12:53:45Z",
-			[]postgresql.Partition{
-				{
-					Schema:      "public",
-					Name:        "my_table_2024_01_02",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2024, 0o1, 0o2, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o1, 0o3, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2024_01_01",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o1, 0o2, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2023_12_31",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2023, 12, 31, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2023_12_30",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2023, 12, 30, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2023, 12, 31, 0, 0, 0, 0, time.UTC),
-				},
-			},
-		},
-		{
-			"Monthly partition",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.MonthlyInterval,
-				Retention:      3,
-				PreProvisioned: 3,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2024-02-25T12:53:45Z",
-			[]postgresql.Partition{
-				{
-					Schema:      "public",
-					Name:        "my_table_2024_01",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o2, 0o1, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2023_12",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2023, 12, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2023_11",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2023, 11, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2023, 12, 0o1, 0, 0, 0, 0, time.UTC),
-				},
-			},
-		},
-		{
-			"Weekly partition",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.WeeklyInterval,
-				Retention:      2,
-				PreProvisioned: 3,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2024-01-09T12:53:45Z",
-			[]postgresql.Partition{
-				{
-					Schema:      "public",
-					Name:        "my_table_2024_w01",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o1, 8, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2023_w52",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2023, 12, 25, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-				},
-			},
-		},
-		{
-			"Yearly partition",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.YearlyInterval,
-				Retention:      2,
-				PreProvisioned: 3,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2024-01-09T12:53:45Z",
-			[]postgresql.Partition{
-				{
-					Schema:      "public",
-					Name:        "my_table_2023",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2023, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2022",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2022, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2023, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-				},
-			},
-		},
-		{
-			"No retention",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.WeeklyInterval,
-				Retention:      0,
-				PreProvisioned: 3,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2024-01-09T12:53:45Z",
-			[]postgresql.Partition{},
-		},
-	}
+func TestAttachPartition(t *testing.T) {
+	schema, table, _, parent := generateTable(t)
+	lowerBound := "2024-01-30"
+	upperBound := "2024-01-31"
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			when, err := time.Parse(time.RFC3339, tc.when)
-			assert.NilError(t, err, "Time parse failed")
+	mock, p := setupMock(t, pgxmock.QueryMatcherEqual)
+	query := fmt.Sprintf(`ALTER TABLE %s.%s ATTACH PARTITION %s.%s FOR VALUES FROM ('%s') TO ('%s')`, schema, parent, schema, table, lowerBound, upperBound)
 
-			tables, _ := tc.partition.GetRetentionPartitions(when)
-			assert.DeepEqual(t, tables, tc.expected)
-		})
-	}
+	mock.ExpectExec(query).WillReturnResult(pgxmock.NewResult("ALTER", 1))
+	err := p.AttachPartition(schema, table, parent, lowerBound, upperBound)
+	assert.Nil(t, err, "AttachPartition should succeed")
+
+	mock.ExpectExec(query).WillReturnError(ErrPostgreSQLConnectionFailure)
+	err = p.AttachPartition(schema, table, parent, lowerBound, upperBound)
+	assert.Error(t, err, "AttachPartition should fail")
 }
 
-func TestPreProvisionedTableNames(t *testing.T) {
-	testCases := []struct {
-		name      string
-		partition postgresql.PartitionConfiguration
-		when      string
-		expected  []postgresql.Partition
-	}{
+func TestDetachPartitionConcurrently(t *testing.T) {
+	schema, table, _, parent := generateTable(t)
+
+	mock, p := setupMock(t, pgxmock.QueryMatcherEqual)
+	query := fmt.Sprintf(`ALTER TABLE %s.%s DETACH PARTITION %s.%s CONCURRENTLY`, schema, parent, schema, table)
+
+	mock.ExpectExec(query).WillReturnResult(pgxmock.NewResult("ALTER", 1))
+	err := p.DetachPartitionConcurrently(schema, table, parent)
+	assert.Nil(t, err, "AttachPartition should succeed")
+
+	mock.ExpectExec(query).WillReturnError(ErrPostgreSQLConnectionFailure)
+	err = p.DetachPartitionConcurrently(schema, table, parent)
+	assert.Error(t, err, "AttachPartition should fail")
+}
+
+func TestFinalizePartitionDetach(t *testing.T) {
+	schema, table, _, parent := generateTable(t)
+
+	mock, p := setupMock(t, pgxmock.QueryMatcherEqual)
+
+	query := fmt.Sprintf(`ALTER TABLE %s.%s DETACH PARTITION %s.%s FINALIZE`, schema, parent, schema, table)
+
+	mock.ExpectExec(query).WillReturnResult(pgxmock.NewResult("ALTER", 1))
+	err := p.FinalizePartitionDetach(schema, table, parent)
+	assert.Nil(t, err, "AttachPartition should succeed")
+
+	mock.ExpectExec(query).WillReturnError(ErrPostgreSQLConnectionFailure)
+	err = p.FinalizePartitionDetach(schema, table, parent)
+	assert.Error(t, err, "AttachPartition should fail")
+}
+
+func TestGetPartitionSettings(t *testing.T) {
+	schema, table, _, _ := generateTable(t)
+	expectedStrategy := "RANGE"
+	expectedKey := "created_at"
+
+	mock, p := setupMock(t, pgxmock.QueryMatcherRegexp)
+
+	query := `SELECT regexp_match`
+
+	mock.ExpectQuery(query).WillReturnRows(mock.NewRows([]string{"partkeydef"}).AddRow([]string{expectedStrategy, expectedKey}))
+	strategy, key, err := p.GetPartitionSettings(schema, table)
+	assert.Nil(t, err, "GetPartitionSettings should succeed")
+	assert.Equal(t, strategy, expectedStrategy, "Strategy should match")
+	assert.Equal(t, key, expectedKey, "Key should match")
+
+	mock.ExpectQuery(query).WillReturnRows(mock.NewRows([]string{"partkeydef"}).AddRow([]string{}))
+	_, _, err = p.GetPartitionSettings(schema, table)
+	assert.Error(t, err, "GetPartitionSettings should fail")
+	assert.ErrorIs(t, err, postgresql.ErrTableIsNotPartioned)
+
+	mock.ExpectQuery(query).WillReturnError(ErrPostgreSQLConnectionFailure)
+	_, _, err = p.GetPartitionSettings(schema, table)
+	assert.Error(t, err, "GetPartitionSettings should fail")
+}
+
+func TestListPartitions(t *testing.T) {
+	schema, table, parent, _ := generateTable(t)
+
+	mock, p := setupMock(t, pgxmock.QueryMatcherRegexp)
+	query := `WITH parts as`
+
+	expectedPartitions := []postgresql.PartitionResult{
 		{
-			"Daily partition",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.DailyInterval,
-				Retention:      4,
-				PreProvisioned: 4,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2024-01-29T12:53:45Z",
-			[]postgresql.Partition{
-				{
-					Schema:      "public",
-					Name:        "my_table_2024_01_30",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2024, 0o1, 30, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o1, 31, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2024_01_31",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2024, 0o1, 31, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o2, 0o1, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2024_02_01",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2024, 0o2, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o2, 0o2, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2024_02_02",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2024, 0o2, 0o2, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o2, 0o3, 0, 0, 0, 0, time.UTC),
-				},
-			},
+			Schema:      schema,
+			ParentTable: parent,
+			Name:        fmt.Sprintf("%s_%s", parent, "2024_01_29"),
+			LowerBound:  "2024-01-29",
+			UpperBound:  "2024-01-30",
 		},
 		{
-			"Monthly partition",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.MonthlyInterval,
-				Retention:      3,
-				PreProvisioned: 3,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2023-11-29T12:53:45Z",
-			[]postgresql.Partition{
-				{
-					Schema:      "public",
-					Name:        "my_table_2023_12",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2023, 12, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2024_01",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o2, 0o1, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2024_02",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2024, 0o2, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o3, 0o1, 0, 0, 0, 0, time.UTC),
-				},
-			},
-		},
-		{
-			"Weekly partition",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.WeeklyInterval,
-				Retention:      2,
-				PreProvisioned: 2,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2023-12-20T12:53:45Z",
-			[]postgresql.Partition{
-				{
-					Schema:      "public",
-					Name:        "my_table_2023_w52",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2023, 12, 25, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2024_w01",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2024, 0o1, 8, 0, 0, 0, 0, time.UTC),
-				},
-			},
-		},
-		{
-			"Yearly partition",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.YearlyInterval,
-				Retention:      2,
-				PreProvisioned: 2,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2023-12-10T12:53:45Z",
-			[]postgresql.Partition{
-				{
-					Schema:      "public",
-					Name:        "my_table_2024",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2024, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2025, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-				}, {
-					Schema:      "public",
-					Name:        "my_table_2025",
-					ParentTable: "my_table",
-					LowerBound:  time.Date(2025, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-					UpperBound:  time.Date(2026, 0o1, 0o1, 0, 0, 0, 0, time.UTC),
-				},
-			},
-		},
-		{
-			"No PreProvisioned",
-			postgresql.PartitionConfiguration{
-				Schema:         "public",
-				Table:          "my_table",
-				PartitionKey:   "created_at",
-				Interval:       postgresql.WeeklyInterval,
-				Retention:      2,
-				PreProvisioned: 0,
-				CleanupPolicy:  postgresql.DropCleanupPolicy,
-			},
-			"2023-12-20T12:53:45Z",
-			[]postgresql.Partition{},
+			Schema:      table,
+			ParentTable: parent,
+			Name:        fmt.Sprintf("%s_%s", parent, "2024_01_30"),
+			LowerBound:  "2024-01-30",
+			UpperBound:  "2024-01-31",
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			when, err := time.Parse(time.RFC3339, tc.when)
-			assert.NilError(t, err, "Time parse failed")
-
-			tables, _ := tc.partition.GetPreProvisionedPartitions(when)
-			assert.DeepEqual(t, tables, tc.expected)
-		})
+	rows := mock.NewRows([]string{"schema", "name", "parentTable", "lowerBound", "upperBound"})
+	for _, p := range expectedPartitions {
+		rows.AddRow(p.Schema, p.Name, p.ParentTable, p.LowerBound, p.UpperBound)
 	}
+	mock.ExpectQuery(query).WillReturnRows(rows)
+	result, err := p.ListPartitions(schema, table)
+	assert.Nil(t, err, "ListPartitions should succeed")
+	assert.Equal(t, result, expectedPartitions, "Partitions should be match")
+
+	rows = mock.NewRows([]string{"invalidColumn"}).AddRow("invalidColumn")
+	mock.ExpectQuery(query).WillReturnRows(rows)
+	_, err = p.ListPartitions(schema, table)
+	assert.Error(t, err, "ListPartitions should fail")
+
+	mock.ExpectQuery(query).WillReturnError(ErrPostgreSQLConnectionFailure)
+	_, err = p.ListPartitions(schema, table)
+	assert.Error(t, err, "ListPartitions should fail")
 }
