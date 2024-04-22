@@ -3,13 +3,6 @@ package postgresql
 import (
 	"errors"
 	"fmt"
-	"strings"
-)
-
-const (
-	DateColumnType     ColumnType = "date"
-	DateTimeColumnType ColumnType = "timestamp"
-	UUIDColumnType     ColumnType = "uuid"
 )
 
 // ErrUnsupportedPartitionKeyType represents an error indicating that the column type for partitioning is not supported.
@@ -17,19 +10,13 @@ var ErrUnsupportedPartitionKeyType = errors.New("unsupported partition key colum
 
 type ColumnType string
 
-type Column struct {
-	Schema   string
-	Table    string
-	Name     string
-	DataType ColumnType
-}
+const (
+	DateColumnType     ColumnType = "date"
+	DateTimeColumnType ColumnType = "timestamp"
+	UUIDColumnType     ColumnType = "uuid"
+)
 
-func (c Column) String() string {
-	return strings.Join([]string{c.Schema, c.Table, c.Name}, ".")
-}
-
-// Return the PostgreSQL data type of the specified column
-func (p PostgreSQL) getColumnDataType(column Column) (ColumnType, error) {
+func (p Postgres) GetColumnDataType(schema, table, column string) (ColumnType, error) {
 	var columnType string
 
 	query := `SELECT
@@ -40,7 +27,7 @@ func (p PostgreSQL) getColumnDataType(column Column) (ColumnType, error) {
 		AND table_name = $2
 		AND column_name = $3`
 
-	err := p.db.QueryRow(p.ctx, query, column.Schema, column.Table, column.Name).Scan(&columnType)
+	err := p.conn.QueryRow(p.ctx, query, schema, table, column).Scan(&columnType)
 	if err != nil {
 		return "", fmt.Errorf("failed to get %s column type: %w", column, err)
 	}

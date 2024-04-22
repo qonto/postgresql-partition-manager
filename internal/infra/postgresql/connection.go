@@ -1,4 +1,3 @@
-// Package postgresql provides methods to interact with PostgreSQL internal resources (tables, columns, ...)
 package postgresql
 
 import (
