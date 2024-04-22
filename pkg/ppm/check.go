@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
 )
 
@@ -37,7 +38,7 @@ func (p *PPM) CheckPartitions() error {
 	return nil
 }
 
-func (p *PPM) checkPartition(config postgresql.PartitionConfiguration) error {
+func (p *PPM) checkPartition(config partition.Configuration) error {
 	p.logger.Debug("Checking partition", "schema", config.Schema, "table", config.Table)
 
 	err := p.checkPartitionKey(config)
@@ -55,40 +56,58 @@ func (p *PPM) checkPartition(config postgresql.PartitionConfiguration) error {
 	return nil
 }
 
-func (p *PPM) checkPartitionKey(config postgresql.PartitionConfiguration) error {
-	partition := postgresql.Partition{
-		Schema:      config.Schema,
-		ParentTable: config.Table,
-		Name:        config.Table,
+func (p *PPM) checkPartitionKey(config partition.Configuration) error {
+	keyDataType, err := p.db.GetColumnDataType(config.Schema, config.Table, config.PartitionKey)
+	if err != nil {
+		return fmt.Errorf("failed to get partition column type: %w", err)
 	}
 
-	partitionSettings, err := p.db.GetPartitionSettings(partition.GetParentTable())
+	partitionStrategy, partitionKey, err := p.db.GetPartitionSettings(config.Schema, config.Table)
 	if err != nil {
 		return fmt.Errorf("failed to get partition settings: %w", err)
 	}
 
-	p.logger.Debug("Partition configuration found", "schema", partition.Schema, "table", partition.Name, "partition_key", partitionSettings.Key, "partition_key_type", partitionSettings.KeyType, "partition_strategy", partitionSettings.Strategy)
+	p.logger.Debug("Partition configuration found", "schema", config.Schema, "table", config.Table, "partition_key", config.PartitionKey, "partition_key_type", keyDataType, "partition_strategy", partitionStrategy)
 
-	if partitionSettings.Key != config.PartitionKey {
-		p.logger.Warn("Partition key mismatch", "expected", config.PartitionKey, "current", partitionSettings.Key)
+	if partitionKey != config.PartitionKey {
+		p.logger.Warn("Partition key mismatch", "expected", config.PartitionKey, "current", partitionKey)
 
 		return ErrPartitionKeyMismatch
 	}
 
-	if !partitionSettings.SupportedStrategy() {
+	if !IsSupportedStrategy(partitionStrategy) {
+		p.logger.Warn("Unsupported partition strategy", "strategy", partitionStrategy)
+
 		return ErrUnsupportedPartitionStrategy
 	}
 
-	if !partitionSettings.SupportedKeyDataType() {
+	if !IsSupportedKeyDataType(keyDataType) {
+		p.logger.Warn("Unsupported partition key data type", "partition_key_data_type", keyDataType)
+
 		return ErrUnsupportedKeyDataType
 	}
 
 	return nil
 }
 
-func (p *PPM) comparePartitions(existingTables, expectedTables []postgresql.Partition) (unexpectedTables, missingTables, incorrectBounds []postgresql.Partition) {
-	// Maps for tracking presence
-	existing := make(map[string]postgresql.Partition)
+func IsSupportedStrategy(strategy string) bool {
+	return strategy == string(partition.RangePartitionStrategy)
+}
+
+func IsSupportedKeyDataType(dataType postgresql.ColumnType) bool {
+	switch dataType {
+	case
+		postgresql.DateColumnType,
+		postgresql.DateTimeColumnType,
+		postgresql.UUIDColumnType:
+		return true
+	}
+
+	return false
+}
+
+func (p *PPM) comparePartitions(existingTables, expectedTables []partition.Partition) (unexpectedTables, missingTables, incorrectBounds []partition.Partition) {
+	existing := make(map[string]partition.Partition)
 	expectedAndExists := make(map[string]bool)
 
 	for _, t := range existingTables {
@@ -130,17 +149,41 @@ func (p *PPM) comparePartitions(existingTables, expectedTables []postgresql.Part
 	return unexpectedTables, missingTables, incorrectBounds
 }
 
-func (p *PPM) checkPartitionsConfiguration(partition postgresql.PartitionConfiguration) error {
+func (p *PPM) ListPartitions(schema, table string) (partitions []partition.Partition, err error) {
+	rawPartitions, err := p.db.ListPartitions(schema, table)
+	if err != nil {
+		return nil, fmt.Errorf("could not list partitions: %w", err)
+	}
+
+	for _, p := range rawPartitions {
+		lowerBound, upperBound, err := parseBounds(p)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse bounds: %w", err)
+		}
+
+		partitions = append(partitions, partition.Partition{
+			Schema:      p.Schema,
+			Name:        p.Name,
+			ParentTable: p.ParentTable,
+			LowerBound:  lowerBound,
+			UpperBound:  upperBound,
+		})
+	}
+
+	return partitions, nil
+}
+
+func (p *PPM) checkPartitionsConfiguration(config partition.Configuration) error {
 	partitionContainAnError := false
 
 	currentTime := time.Now()
 
-	expectedPartitions, err := getExpectedPartitions(partition, currentTime)
+	expectedPartitions, err := getExpectedPartitions(config, currentTime)
 	if err != nil {
 		return fmt.Errorf("could not generate expected partitions: %w", err)
 	}
 
-	foundPartitions, err := p.db.ListPartitions(postgresql.Table{Schema: partition.Schema, Name: partition.Table})
+	foundPartitions, err := p.ListPartitions(config.Schema, config.Table)
 	if err != nil {
 		return fmt.Errorf("could not list partitions: %w", err)
 	}

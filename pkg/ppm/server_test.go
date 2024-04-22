@@ -48,7 +48,7 @@ func TestServerRequirements(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Reset mock on every test case
-			logger, postgreSQLMock := getTestMocks(t)
+			logger, postgreSQLMock := setupMocks(t)
 			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, nil)
 
 			postgreSQLMock.On("GetEngineVersion").Return(tc.serverVersion, nil).Once()

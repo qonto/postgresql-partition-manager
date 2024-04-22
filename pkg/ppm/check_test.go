@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/qonto/postgresql-partition-manager/internal/infra/logger"
+	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
 	"github.com/qonto/postgresql-partition-manager/pkg/ppm"
 	"github.com/qonto/postgresql-partition-manager/pkg/ppm/mocks"
@@ -22,13 +23,12 @@ var (
 	dayAfterTomorrow   = tomorrow.AddDate(0, 0, +1)
 )
 
-func getTestMocks(t *testing.T) (*slog.Logger, *mocks.PostgreSQLClient) {
+func setupMocks(t *testing.T) (*slog.Logger, *mocks.PostgreSQLClient) {
 	t.Helper()
 
-	logger, err := logger.New(false, "text")
+	logger, err := logger.New(true, "text")
 	if err != nil {
-		fmt.Println("ERROR: Fail to initialize logger: %w", err)
-		panic(err)
+		t.Fatalf("ERROR: Fail to initialize logger: %s", err)
 	}
 
 	postgreSQLMock := mocks.PostgreSQLClient{}
@@ -37,63 +37,63 @@ func getTestMocks(t *testing.T) (*slog.Logger, *mocks.PostgreSQLClient) {
 }
 
 func TestCheckPartitions(t *testing.T) {
-	logger, postgreSQLMock := getTestMocks(t)
+	logger, postgreSQLMock := setupMocks(t)
+	boundDateFormat := "2006-01-02" //nolint:goconst
 
-	partitions := map[string]postgresql.PartitionConfiguration{}
-	partitions["daily partition"] = postgresql.PartitionConfiguration{Schema: "app", Table: "daily_table1", PartitionKey: "column", Interval: postgresql.DailyInterval, Retention: 2, PreProvisioned: 2}
-	partitions["daily partition without retention"] = postgresql.PartitionConfiguration{Schema: "public", Table: "daily_table2", PartitionKey: "created_at", Interval: postgresql.DailyInterval, Retention: 0, PreProvisioned: 1}
-	partitions["daily partition without preprovisioned"] = postgresql.PartitionConfiguration{Schema: "public", Table: "daily_table3", PartitionKey: "column", Interval: postgresql.DailyInterval, Retention: 4, PreProvisioned: 0}
-	partitions["weekly partition"] = postgresql.PartitionConfiguration{Schema: "public", Table: "weekly_table", PartitionKey: "weekly", Interval: postgresql.WeeklyInterval, Retention: 2, PreProvisioned: 2}
-	partitions["monthly partition"] = postgresql.PartitionConfiguration{Schema: "public", Table: "monthly_table", PartitionKey: "month", Interval: postgresql.MonthlyInterval, Retention: 2, PreProvisioned: 2}
-	partitions["yearly partition"] = postgresql.PartitionConfiguration{Schema: "public", Table: "yearly_table", PartitionKey: "year", Interval: postgresql.YearlyInterval, Retention: 4, PreProvisioned: 4}
+	partitions := map[string]partition.Configuration{}
+	partitions["daily partition"] = partition.Configuration{Schema: "app", Table: "daily_table1", PartitionKey: "column", Interval: partition.DailyInterval, Retention: 2, PreProvisioned: 2}
+	partitions["daily partition without retention"] = partition.Configuration{Schema: "public", Table: "daily_table2", PartitionKey: "created_at", Interval: partition.DailyInterval, Retention: 0, PreProvisioned: 1}
+	partitions["daily partition without preprovisioned"] = partition.Configuration{Schema: "public", Table: "daily_table3", PartitionKey: "column", Interval: partition.DailyInterval, Retention: 4, PreProvisioned: 0}
+	partitions["weekly partition"] = partition.Configuration{Schema: "public", Table: "weekly_table", PartitionKey: "weekly", Interval: partition.WeeklyInterval, Retention: 2, PreProvisioned: 2}
+	partitions["monthly partition"] = partition.Configuration{Schema: "public", Table: "monthly_table", PartitionKey: "month", Interval: partition.MonthlyInterval, Retention: 2, PreProvisioned: 2}
+	partitions["yearly partition"] = partition.Configuration{Schema: "public", Table: "yearly_table", PartitionKey: "year", Interval: partition.YearlyInterval, Retention: 4, PreProvisioned: 4}
 
 	// Build mock for each partitions
 	for _, p := range partitions {
-		settings := postgresql.PartitionSettings{
-			KeyType:  postgresql.DateColumnType,
-			Strategy: postgresql.RangePartitionStrategy,
-			Key:      p.PartitionKey,
-		}
-		postgreSQLMock.On("GetPartitionSettings", postgresql.Table{Schema: p.Schema, Name: p.Table}).Return(settings, nil).Once()
+		var tables []partition.Partition
 
-		var tables []postgresql.Partition
-
-		var partition postgresql.Partition
+		var table partition.Partition
 
 		for i := 0; i <= p.Retention; i++ {
 			switch p.Interval {
-			case postgresql.DailyInterval:
-				partition, _ = p.GeneratePartition(time.Now().AddDate(0, 0, -i))
-			case postgresql.WeeklyInterval:
-				partition, _ = p.GeneratePartition(time.Now().AddDate(0, 0, -i*7))
-			case postgresql.MonthlyInterval:
-				partition, _ = p.GeneratePartition(time.Now().AddDate(0, -i, 0))
-			case postgresql.YearlyInterval:
-				partition, _ = p.GeneratePartition(time.Now().AddDate(-i, 0, 0))
+			case partition.DailyInterval:
+				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, -i))
+			case partition.WeeklyInterval:
+				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, -i*7))
+			case partition.MonthlyInterval:
+				table, _ = p.GeneratePartition(time.Now().AddDate(0, -i, 0))
+			case partition.YearlyInterval:
+				table, _ = p.GeneratePartition(time.Now().AddDate(-i, 0, 0))
 			default:
 				t.Errorf("unuspported partition interval in retention table mock")
 			}
 
-			tables = append(tables, partition)
+			postgreSQLMock.On("GetColumnDataType", table.Schema, table.ParentTable, p.PartitionKey).Return(postgresql.DateColumnType, nil).Once()
+			tables = append(tables, table)
 		}
 
 		for i := 0; i <= p.PreProvisioned; i++ {
 			switch p.Interval {
-			case postgresql.DailyInterval:
-				partition, _ = p.GeneratePartition(time.Now().AddDate(0, 0, i))
-			case postgresql.WeeklyInterval:
-				partition, _ = p.GeneratePartition(time.Now().AddDate(0, 0, i*7))
-			case postgresql.MonthlyInterval:
-				partition, _ = p.GeneratePartition(time.Now().AddDate(0, i, 0))
-			case postgresql.YearlyInterval:
-				partition, _ = p.GeneratePartition(time.Now().AddDate(i, 0, 0))
+			case partition.DailyInterval:
+				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, i))
+			case partition.WeeklyInterval:
+				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, i*7))
+			case partition.MonthlyInterval:
+				table, _ = p.GeneratePartition(time.Now().AddDate(0, i, 0))
+			case partition.YearlyInterval:
+				table, _ = p.GeneratePartition(time.Now().AddDate(i, 0, 0))
 			default:
 				t.Errorf("unuspported partition interval in preprovisonned table mock")
 			}
 
-			tables = append(tables, partition)
+			postgreSQLMock.On("GetColumnDataType", table.Schema, table.ParentTable, p.PartitionKey).Return(postgresql.DateColumnType, nil).Once()
+			tables = append(tables, table)
 		}
-		postgreSQLMock.On("ListPartitions", postgresql.Table{Schema: p.Schema, Name: p.Table}).Return(tables, nil).Once()
+
+		postgreSQLMock.On("GetPartitionSettings", p.Schema, p.Table).Return(string(partition.RangePartitionStrategy), p.PartitionKey, nil).Once()
+
+		convertedTables := partitionResultToPartition(t, tables, boundDateFormat)
+		postgreSQLMock.On("ListPartitions", p.Schema, p.Table).Return(convertedTables, nil).Once()
 	}
 
 	checker := ppm.New(context.TODO(), *logger, postgreSQLMock, partitions)
@@ -101,42 +101,43 @@ func TestCheckPartitions(t *testing.T) {
 }
 
 func TestCheckMissingPartitions(t *testing.T) {
-	logger, postgreSQLMock := getTestMocks(t)
+	logger, postgreSQLMock := setupMocks(t)
+	boundDateFormat := "2006-01-02"
 
-	partition := postgresql.PartitionConfiguration{
+	config := partition.Configuration{
 		Schema:         "public",
 		Table:          "my_table",
 		PartitionKey:   "created_at",
-		Interval:       postgresql.DailyInterval,
+		Interval:       partition.DailyInterval,
 		Retention:      2,
 		PreProvisioned: 2,
 	}
 
-	todayPartition, _ := partition.GeneratePartition(today)
-	yesterdayPartition, _ := partition.GeneratePartition(yesterday)
-	tomorrowPartition, _ := partition.GeneratePartition(tomorrow)
+	todayPartition, _ := config.GeneratePartition(today)
+	yesterdayPartition, _ := config.GeneratePartition(yesterday)
+	tomorrowPartition, _ := config.GeneratePartition(tomorrow)
 
 	testCases := []struct {
 		name   string
-		tables []postgresql.Partition
+		tables []partition.Partition
 	}{
 		{
 			"Missing Yesterday retention partition",
-			[]postgresql.Partition{
+			[]partition.Partition{
 				todayPartition,
 				yesterdayPartition,
 			},
 		},
 		{
 			"Missing Tomorrow partition",
-			[]postgresql.Partition{
+			[]partition.Partition{
 				todayPartition,
 				tomorrowPartition,
 			},
 		},
 		{
 			"Missing Today partition",
-			[]postgresql.Partition{
+			[]partition.Partition{
 				yesterdayPartition,
 				tomorrowPartition,
 			},
@@ -145,53 +146,54 @@ func TestCheckMissingPartitions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			settings := postgresql.PartitionSettings{
-				KeyType:  postgresql.DateColumnType,
-				Strategy: postgresql.RangePartitionStrategy,
-				Key:      partition.PartitionKey,
-			}
-			postgreSQLMock.On("GetPartitionSettings", postgresql.Table{Schema: partition.Schema, Name: partition.Table}).Return(settings, nil).Once()
-
 			fmt.Println("tc.tables", tc.tables)
-			postgreSQLMock.On("ListPartitions", postgresql.Table{Schema: partition.Schema, Name: partition.Table}).Return(tc.tables, nil).Once()
+			postgreSQLMock.On("GetPartitionSettings", config.Schema, config.Table).Return(string(partition.RangePartitionStrategy), config.PartitionKey, nil).Once()
+			postgreSQLMock.On("GetColumnDataType", config.Schema, config.Table, config.PartitionKey).Return(postgresql.DateColumnType, nil).Once()
 
-			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, map[string]postgresql.PartitionConfiguration{"test": partition})
+			tables := partitionResultToPartition(t, tc.tables, boundDateFormat)
+			postgreSQLMock.On("ListPartitions", config.Schema, config.Table).Return(tables, nil).Once()
+
+			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, map[string]partition.Configuration{"test": config})
 			assert.Error(t, checker.CheckPartitions(), "at least one partition contains an invalid configuration")
 		})
 	}
 }
 
 func TestUnsupportedPartitionsStrategy(t *testing.T) {
-	logger, postgreSQLMock := getTestMocks(t)
+	logger, postgreSQLMock := setupMocks(t)
 
-	partition := postgresql.PartitionConfiguration{
+	config := partition.Configuration{
 		Schema:         "public",
 		Table:          "my_table",
 		PartitionKey:   "created_at",
-		Interval:       postgresql.DailyInterval,
+		Interval:       partition.DailyInterval,
 		Retention:      2,
 		PreProvisioned: 2,
 	}
 
 	testCases := []struct {
 		name     string
-		settings postgresql.PartitionSettings
+		strategy partition.PartitionStrategy
+		key      string
 	}{
 		{
 			"Unsupported list partition strategy",
-			postgresql.PartitionSettings{Strategy: postgresql.ListPartitionStrategy, Key: "created_at", KeyType: postgresql.DateColumnType},
+			partition.ListPartitionStrategy,
+			"created_at",
 		},
 		{
 			"Unsupported hash partition strategy",
-			postgresql.PartitionSettings{Strategy: postgresql.HashPartitionStrategy, Key: "created_at", KeyType: postgresql.DateColumnType},
+			partition.HashPartitionStrategy,
+			"created_at",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			postgreSQLMock.On("GetPartitionSettings", postgresql.Table{Schema: partition.Schema, Name: partition.Table}).Return(tc.settings, nil).Once()
+			postgreSQLMock.On("GetColumnDataType", config.Schema, config.Table, config.PartitionKey).Return(postgresql.DateColumnType, nil).Once()
+			postgreSQLMock.On("GetPartitionSettings", config.Schema, config.Table).Return(string(tc.strategy), tc.key, nil).Once()
 
-			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, map[string]postgresql.PartitionConfiguration{"test": partition})
+			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, map[string]partition.Configuration{"test": config})
 			assert.Error(t, checker.CheckPartitions(), "at least one partition contains an invalid configuration")
 		})
 	}

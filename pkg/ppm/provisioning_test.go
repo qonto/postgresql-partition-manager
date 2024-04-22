@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
 	"github.com/qonto/postgresql-partition-manager/pkg/ppm"
 	"github.com/stretchr/testify/assert"
@@ -22,15 +23,15 @@ func TestProvisioning(t *testing.T) {
 
 	testCases := []struct {
 		name                      string
-		partitions                map[string]postgresql.PartitionConfiguration
-		expectedCreatedPartitions []postgresql.Partition
+		partitions                map[string]partition.Configuration
+		expectedCreatedPartitions []partition.Partition
 	}{
 		{
 			"Provisioning create preProvisioned and retention partitions",
-			map[string]postgresql.PartitionConfiguration{
+			map[string]partition.Configuration{
 				"unittest": OneDayPartitionConfiguration,
 			},
-			[]postgresql.Partition{
+			[]partition.Partition{
 				yesterdayPartition,
 				currentPartition,
 				tomorrowPartition,
@@ -38,11 +39,11 @@ func TestProvisioning(t *testing.T) {
 		},
 		{
 			"Multiple provisioning",
-			map[string]postgresql.PartitionConfiguration{
+			map[string]partition.Configuration{
 				"unittest 1": TwoDayPartitionConfiguration,
 				"unittest 2": TwoDayPartitionConfiguration,
 			},
-			[]postgresql.Partition{
+			[]partition.Partition{
 				dayBeforeYesterdayPartition,
 				yesterdayPartition,
 				currentPartition,
@@ -54,11 +55,16 @@ func TestProvisioning(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			logger, postgreSQLMock := getTestMocks(t) // Reset mock on every test case
+			logger, postgreSQLMock := setupMocks(t) // Reset mock on every test case
 
-			for _, partitionConfiguration := range tc.partitions {
-				for _, partition := range tc.expectedCreatedPartitions {
-					postgreSQLMock.On("CreatePartition", partitionConfiguration, partition).Return(nil).Once()
+			for _, configuration := range tc.partitions {
+				for _, p := range tc.expectedCreatedPartitions {
+					postgreSQLMock.On("IsTableExists", p.Schema, p.Name).Return(false, nil).Once()
+					postgreSQLMock.On("IsPartitionAttached", p.Schema, p.Name).Return(false, nil).Once()
+					postgreSQLMock.On("GetPartitionSettings", p.Schema, p.ParentTable).Return(string(partition.RangePartitionStrategy), configuration.PartitionKey, nil).Once()
+					postgreSQLMock.On("GetColumnDataType", p.Schema, p.ParentTable, configuration.PartitionKey).Return(postgresql.DateColumnType, nil).Once()
+					postgreSQLMock.On("CreateTableLikeTable", p.Schema, p.Name, p.ParentTable).Return(nil).Once()
+					postgreSQLMock.On("AttachPartition", p.Schema, p.Name, p.ParentTable, formatLowerBound(t, p, configuration), formatUpperBound(t, p, configuration)).Return(nil).Once()
 				}
 			}
 
@@ -73,12 +79,14 @@ func TestProvisioning(t *testing.T) {
 
 // Test provisioning continue even if a partition could not be created
 func TestProvisioningFailover(t *testing.T) {
+	successPartitionConfiguration := OneDayPartitionConfiguration
+
 	failedPartitionConfiguration := OneDayPartitionConfiguration
 	failedPartitionConfiguration.Table = "failed"
 
 	testCases := []struct {
 		name                 string
-		config               postgresql.PartitionConfiguration
+		config               partition.Configuration
 		createPartitionError error
 	}{
 		{
@@ -88,26 +96,34 @@ func TestProvisioningFailover(t *testing.T) {
 		},
 		{
 			"success provisioning",
-			OneDayPartitionConfiguration,
+			successPartitionConfiguration,
 			nil,
 		},
 	}
 
-	logger, postgreSQLMock := getTestMocks(t)
+	logger, postgreSQLMock := setupMocks(t)
 
-	configuration := map[string]postgresql.PartitionConfiguration{}
+	configuration := map[string]partition.Configuration{}
 
 	for _, tc := range testCases {
 		previous, _ := tc.config.GetRetentionPartitions(today)
 		current, _ := tc.config.GeneratePartition(today)
 		future, _ := tc.config.GetPreProvisionedPartitions(today)
 
-		partitions := []postgresql.Partition{current}
+		partitions := []partition.Partition{current}
 		partitions = append(partitions, previous...)
 		partitions = append(partitions, future...)
 
-		for _, partition := range partitions {
-			postgreSQLMock.On("CreatePartition", tc.config, partition).Return(tc.createPartitionError).Once()
+		for _, p := range partitions {
+			postgreSQLMock.On("IsTableExists", p.Schema, p.Name).Return(false, nil).Once()
+			postgreSQLMock.On("CreateTableLikeTable", p.Schema, p.Name, p.ParentTable).Return(tc.createPartitionError).Once()
+
+			if tc.createPartitionError == nil {
+				postgreSQLMock.On("IsPartitionAttached", p.Schema, p.Name).Return(false, nil)
+				postgreSQLMock.On("GetPartitionSettings", p.Schema, p.ParentTable).Return(string(partition.RangePartitionStrategy), tc.config.PartitionKey, nil).Once()
+				postgreSQLMock.On("GetColumnDataType", p.Schema, p.ParentTable, tc.config.PartitionKey).Return(postgresql.DateColumnType, nil).Once()
+				postgreSQLMock.On("AttachPartition", p.Schema, p.Name, p.ParentTable, formatLowerBound(t, p, tc.config), formatUpperBound(t, p, tc.config)).Return(nil).Once()
+			}
 		}
 
 		configuration[tc.name] = tc.config
