@@ -5,12 +5,13 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
 	"github.com/qonto/postgresql-partition-manager/pkg/ppm"
 	"github.com/stretchr/testify/assert"
 )
 
-var OneDayPartitionConfiguration = postgresql.PartitionConfiguration{
+var OneDayPartitionConfiguration = partition.Configuration{
 	Schema:         "public",
 	Table:          "my_table",
 	PartitionKey:   "created_at",
@@ -36,51 +37,52 @@ func TestCleanupPartitions(t *testing.T) {
 	dropPartitionConfiguration := OneDayPartitionConfiguration
 	OneDayPartitionConfiguration.CleanupPolicy = "drop"
 
+	boundDateFormat := "2006-01-02"
+
 	testCases := []struct {
 		name                      string
-		partitions                map[string]postgresql.PartitionConfiguration
-		existingPartitions        []postgresql.Partition
-		expectedRemovedPartitions []postgresql.Partition
+		partitions                map[string]partition.Configuration
+		existingPartitions        []partition.Partition
+		expectedRemovedPartitions []partition.Partition
 	}{
 		{
 			"Drop useless partitions",
-			map[string]postgresql.PartitionConfiguration{
+			map[string]partition.Configuration{
 				"unittest": dropPartitionConfiguration,
 			},
-			[]postgresql.Partition{yearBeforePartition, dayBeforeYesterdayPartition, yesterdayPartition, currentPartition, tomorrowPartition, dayAfterTomorrowPartition},
-			[]postgresql.Partition{yearBeforePartition, dayBeforeYesterdayPartition, dayAfterTomorrowPartition},
+			[]partition.Partition{yearBeforePartition, dayBeforeYesterdayPartition, yesterdayPartition, currentPartition, tomorrowPartition, dayAfterTomorrowPartition},
+			[]partition.Partition{yearBeforePartition, dayBeforeYesterdayPartition, dayAfterTomorrowPartition},
 		},
 		{
 			"Detach useless partitions",
-			map[string]postgresql.PartitionConfiguration{
+			map[string]partition.Configuration{
 				"unittest": detachPartitionConfiguration,
 			},
-			[]postgresql.Partition{yearBeforePartition, dayBeforeYesterdayPartition, yesterdayPartition, currentPartition},
-			[]postgresql.Partition{yearBeforePartition, dayBeforeYesterdayPartition},
+			[]partition.Partition{yearBeforePartition, dayBeforeYesterdayPartition, yesterdayPartition, currentPartition},
+			[]partition.Partition{yearBeforePartition, dayBeforeYesterdayPartition},
 		},
 		{
 			"No cleanup",
-			map[string]postgresql.PartitionConfiguration{
+			map[string]partition.Configuration{
 				"unittest": dropPartitionConfiguration,
 			},
-			[]postgresql.Partition{yesterdayPartition, currentPartition, tomorrowPartition},
-			[]postgresql.Partition{},
+			[]partition.Partition{yesterdayPartition, currentPartition, tomorrowPartition},
+			[]partition.Partition{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			logger, postgreSQLMock := getTestMocks(t) // Reset mock on every test case
+			logger, postgreSQLMock := setupMocks(t) // Reset mock on every test case
 
 			for _, partitionConfiguration := range tc.partitions {
-				table := postgresql.Table{Schema: partitionConfiguration.Schema, Name: partitionConfiguration.Table}
-				postgreSQLMock.On("ListPartitions", table).Return(tc.existingPartitions, nil).Once()
+				postgreSQLMock.On("ListPartitions", partitionConfiguration.Schema, partitionConfiguration.Table).Return(partitionResultToPartition(t, tc.existingPartitions, boundDateFormat), nil).Once()
 
-				for _, partition := range tc.expectedRemovedPartitions {
-					postgreSQLMock.On("DetachPartition", partition).Return(nil).Once()
+				for _, p := range tc.expectedRemovedPartitions {
+					postgreSQLMock.On("DetachPartitionConcurrently", p.Schema, p.Name, p.ParentTable).Return(nil).Once()
 
-					if partitionConfiguration.CleanupPolicy == postgresql.DropCleanupPolicy {
-						postgreSQLMock.On("DeletePartition", partition).Return(nil).Once()
+					if partitionConfiguration.CleanupPolicy == partition.Drop {
+						postgreSQLMock.On("DropTable", p.Schema, p.Name).Return(nil).Once()
 					}
 				}
 			}
@@ -104,45 +106,60 @@ func TestCleanupPartitionsFailover(t *testing.T) {
 	undropablePartitionConfiguration := OneDayPartitionConfiguration
 	undropablePartitionConfiguration.Table = "undropable"
 
-	configuration := map[string]postgresql.PartitionConfiguration{
-		"undetachable": undetachablePartitionConfiguration,
-		"undropable":   undropablePartitionConfiguration,
-		"success":      successPartitionConfiguration,
+	pendingFinalizePartitionConfiguration := OneDayPartitionConfiguration
+	pendingFinalizePartitionConfiguration.Table = "pendingFinalize"
+
+	configuration := map[string]partition.Configuration{
+		"undetachable":    undetachablePartitionConfiguration,
+		"undropable":      undropablePartitionConfiguration,
+		"pendingFinalize": pendingFinalizePartitionConfiguration,
+		"success":         successPartitionConfiguration,
 	}
 
-	logger, postgreSQLMock := getTestMocks(t)
+	boundDateFormat := "2006-01-02"
+
+	logger, postgreSQLMock := setupMocks(t)
 
 	for _, config := range configuration {
-		table := postgresql.Table{Schema: config.Schema, Name: config.Table}
-
 		dayBeforeYesterdayPartition, _ := config.GeneratePartition(dayBeforeYesterday)
 		yesterdayPartitionPartition, _ := config.GeneratePartition(yesterday)
 		todayPartitionPartition, _ := config.GeneratePartition(today)
 		tomorrowPartitionPartition, _ := config.GeneratePartition(tomorrow)
 
-		partitions := []postgresql.Partition{
+		partitions := []partition.Partition{
 			dayBeforeYesterdayPartition, // This partition should be removed by the cleanup
 			yesterdayPartitionPartition,
 			todayPartitionPartition,
 			tomorrowPartitionPartition,
 		}
 
-		postgreSQLMock.On("ListPartitions", table).Return(partitions, nil).Once()
+		postgreSQLMock.On("ListPartitions", config.Schema, config.Table).Return(partitionResultToPartition(t, partitions, boundDateFormat), nil).Once()
 	}
 
 	// Undetachable partition will return an error on detach operation
 	undetachablePartition, _ := undetachablePartitionConfiguration.GeneratePartition(dayBeforeYesterday)
-	postgreSQLMock.On("DetachPartition", undetachablePartition).Return(ErrFake).Once()
+	postgreSQLMock.On("DetachPartitionConcurrently", undetachablePartition.Schema, undetachablePartition.Name, undetachablePartition.ParentTable).Return(ErrFake)
 
 	// Undropable partition will return an error on drop operation
 	undropablePartition, _ := undropablePartitionConfiguration.GeneratePartition(dayBeforeYesterday)
-	postgreSQLMock.On("DetachPartition", undropablePartition).Return(nil).Once()
-	postgreSQLMock.On("DeletePartition", undropablePartition).Return(ErrFake).Once()
+	postgreSQLMock.On("DetachPartitionConcurrently", undropablePartition.Schema, undropablePartition.Name, undropablePartition.ParentTable).Return(nil)
+	postgreSQLMock.On("DropTable", undropablePartition.Schema, undropablePartition.Name).Return(ErrFake)
+
+	// Pending finalize partition will return an error on detach operation
+	pendingFinalizePartition, _ := pendingFinalizePartitionConfiguration.GeneratePartition(dayBeforeYesterday)
+	ErrObjectNotInPrerequisiteState := &pgconn.PgError{
+		Code:       ppm.ObjectNotInPrerequisiteStatePostgreSQLErrorCode,
+		SchemaName: pendingFinalizePartition.Schema,
+		TableName:  pendingFinalizePartition.Name,
+	}
+	postgreSQLMock.On("DetachPartitionConcurrently", pendingFinalizePartition.Schema, pendingFinalizePartition.Name, pendingFinalizePartition.ParentTable).Return(ErrObjectNotInPrerequisiteState)
+	postgreSQLMock.On("FinalizePartitionDetach", pendingFinalizePartition.Schema, pendingFinalizePartition.Name, pendingFinalizePartition.ParentTable).Return(nil)
+	postgreSQLMock.On("DropTable", pendingFinalizePartition.Schema, pendingFinalizePartition.Name).Return(ErrFake)
 
 	// Detach and drop will succeed
 	successPartition, _ := successPartitionConfiguration.GeneratePartition(dayBeforeYesterday)
-	postgreSQLMock.On("DetachPartition", successPartition).Return(nil).Once()
-	postgreSQLMock.On("DeletePartition", successPartition).Return(nil).Once()
+	postgreSQLMock.On("DetachPartitionConcurrently", successPartition.Schema, successPartition.Name, successPartition.ParentTable).Return(nil).Once()
+	postgreSQLMock.On("DropTable", successPartition.Schema, successPartition.Name).Return(nil).Once()
 
 	checker := ppm.New(context.TODO(), *logger, postgreSQLMock, configuration)
 	err := checker.CleanupPartitions()

@@ -7,27 +7,33 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
 )
 
 type PostgreSQLClient interface {
-	CreatePartition(partitionConfiguration postgresql.PartitionConfiguration, partition postgresql.Partition) error
-	DeletePartition(partition postgresql.Partition) error
-	DetachPartition(partition postgresql.Partition) error
-	GetPartitionSettings(postgresql.Table) (postgresql.PartitionSettings, error)
-	ListPartitions(table postgresql.Table) ([]postgresql.Partition, error)
-	GetVersion() (int64, error)
+	ListPartitions(schema, table string) (partitions []postgresql.PartitionResult, err error)
+	GetEngineVersion() (int64, error)
 	GetServerTime() (time.Time, error)
+	IsTableExists(schema, table string) (bool, error)
+	IsPartitionAttached(schema, table string) (bool, error)
+	AttachPartition(schema, table, parent, lowerBound, upperBound string) error
+	CreateTableLikeTable(schema, table, parent string) error
+	GetColumnDataType(schema, table, column string) (postgresql.ColumnType, error)
+	GetPartitionSettings(schema, table string) (strategy, key string, err error)
+	DropTable(schema, table string) error
+	DetachPartitionConcurrently(schema, table, parent string) error
+	FinalizePartitionDetach(schema, table, parent string) error
 }
 
 type PPM struct {
 	ctx        context.Context
 	db         PostgreSQLClient
-	partitions map[string]postgresql.PartitionConfiguration
+	partitions map[string]partition.Configuration
 	logger     slog.Logger
 }
 
-func New(context context.Context, logger slog.Logger, db PostgreSQLClient, partitions map[string]postgresql.PartitionConfiguration) *PPM {
+func New(context context.Context, logger slog.Logger, db PostgreSQLClient, partitions map[string]partition.Configuration) *PPM {
 	return &PPM{
 		partitions: partitions,
 		ctx:        context,
@@ -36,7 +42,7 @@ func New(context context.Context, logger slog.Logger, db PostgreSQLClient, parti
 	}
 }
 
-func getExpectedPartitions(partition postgresql.PartitionConfiguration, currentTime time.Time) (partitions []postgresql.Partition, err error) {
+func getExpectedPartitions(partition partition.Configuration, currentTime time.Time) (partitions []partition.Partition, err error) {
 	retentions, err := partition.GetRetentionPartitions(currentTime)
 	if err != nil {
 		return partitions, fmt.Errorf("could not generate retention partitions: %w", err)

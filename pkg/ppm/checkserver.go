@@ -29,7 +29,7 @@ func (p *PPM) CheckServerRequirements() error {
 }
 
 func (p *PPM) requirePostgreSQLSupportedVersion() error {
-	version, err := p.db.GetVersion()
+	version, err := p.db.GetEngineVersion()
 	if err != nil {
 		return fmt.Errorf("failed to fetch PostgreSQL version: %w", err)
 	}

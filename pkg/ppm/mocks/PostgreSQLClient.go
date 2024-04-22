@@ -14,13 +14,13 @@ type PostgreSQLClient struct {
 	mock.Mock
 }
 
-// CreatePartition provides a mock function with given fields: partitionConfiguration, partition
-func (_m *PostgreSQLClient) CreatePartition(partitionConfiguration postgresql.PartitionConfiguration, partition postgresql.Partition) error {
-	ret := _m.Called(partitionConfiguration, partition)
+// AttachPartition provides a mock function with given fields: schema, table, parent, lowerBound, upperBound
+func (_m *PostgreSQLClient) AttachPartition(schema string, table string, parent string, lowerBound string, upperBound string) error {
+	ret := _m.Called(schema, table, parent, lowerBound, upperBound)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(postgresql.PartitionConfiguration, postgresql.Partition) error); ok {
-		r0 = rf(partitionConfiguration, partition)
+	if rf, ok := ret.Get(0).(func(string, string, string, string, string) error); ok {
+		r0 = rf(schema, table, parent, lowerBound, upperBound)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -28,13 +28,13 @@ func (_m *PostgreSQLClient) CreatePartition(partitionConfiguration postgresql.Pa
 	return r0
 }
 
-// DeletePartition provides a mock function with given fields: partition
-func (_m *PostgreSQLClient) DeletePartition(partition postgresql.Partition) error {
-	ret := _m.Called(partition)
+// CreateTableLikeTable provides a mock function with given fields: schema, table, parent
+func (_m *PostgreSQLClient) CreateTableLikeTable(schema string, table string, parent string) error {
+	ret := _m.Called(schema, table, parent)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(postgresql.Partition) error); ok {
-		r0 = rf(partition)
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(schema, table, parent)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -42,13 +42,13 @@ func (_m *PostgreSQLClient) DeletePartition(partition postgresql.Partition) erro
 	return r0
 }
 
-// DetachPartition provides a mock function with given fields: partition
-func (_m *PostgreSQLClient) DetachPartition(partition postgresql.Partition) error {
-	ret := _m.Called(partition)
+// DetachPartitionConcurrently provides a mock function with given fields: schema, table, parent
+func (_m *PostgreSQLClient) DetachPartitionConcurrently(schema string, table string, parent string) error {
+	ret := _m.Called(schema, table, parent)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(postgresql.Partition) error); ok {
-		r0 = rf(partition)
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(schema, table, parent)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -56,28 +56,111 @@ func (_m *PostgreSQLClient) DetachPartition(partition postgresql.Partition) erro
 	return r0
 }
 
-// GetPartitionSettings provides a mock function with given fields: _a0
-func (_m *PostgreSQLClient) GetPartitionSettings(_a0 postgresql.Table) (postgresql.PartitionSettings, error) {
-	ret := _m.Called(_a0)
+// DropTable provides a mock function with given fields: schema, table
+func (_m *PostgreSQLClient) DropTable(schema string, table string) error {
+	ret := _m.Called(schema, table)
 
-	var r0 postgresql.PartitionSettings
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(schema, table)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// FinalizePartitionDetach provides a mock function with given fields: schema, table, parent
+func (_m *PostgreSQLClient) FinalizePartitionDetach(schema string, table string, parent string) error {
+	ret := _m.Called(schema, table, parent)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(schema, table, parent)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// GetColumnDataType provides a mock function with given fields: schema, table, column
+func (_m *PostgreSQLClient) GetColumnDataType(schema string, table string, column string) (postgresql.ColumnType, error) {
+	ret := _m.Called(schema, table, column)
+
+	var r0 postgresql.ColumnType
 	var r1 error
-	if rf, ok := ret.Get(0).(func(postgresql.Table) (postgresql.PartitionSettings, error)); ok {
-		return rf(_a0)
+	if rf, ok := ret.Get(0).(func(string, string, string) (postgresql.ColumnType, error)); ok {
+		return rf(schema, table, column)
 	}
-	if rf, ok := ret.Get(0).(func(postgresql.Table) postgresql.PartitionSettings); ok {
-		r0 = rf(_a0)
+	if rf, ok := ret.Get(0).(func(string, string, string) postgresql.ColumnType); ok {
+		r0 = rf(schema, table, column)
 	} else {
-		r0 = ret.Get(0).(postgresql.PartitionSettings)
+		r0 = ret.Get(0).(postgresql.ColumnType)
 	}
 
-	if rf, ok := ret.Get(1).(func(postgresql.Table) error); ok {
-		r1 = rf(_a0)
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(schema, table, column)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
+}
+
+// GetEngineVersion provides a mock function with given fields:
+func (_m *PostgreSQLClient) GetEngineVersion() (int64, error) {
+	ret := _m.Called()
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (int64, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() int64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetPartitionSettings provides a mock function with given fields: schema, table
+func (_m *PostgreSQLClient) GetPartitionSettings(schema string, table string) (string, string, error) {
+	ret := _m.Called(schema, table)
+
+	var r0 string
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(string, string) (string, string, error)); ok {
+		return rf(schema, table)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = rf(schema, table)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) string); ok {
+		r1 = rf(schema, table)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(string, string) error); ok {
+		r2 = rf(schema, table)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetServerTime provides a mock function with given fields:
@@ -104,23 +187,23 @@ func (_m *PostgreSQLClient) GetServerTime() (time.Time, error) {
 	return r0, r1
 }
 
-// GetVersion provides a mock function with given fields:
-func (_m *PostgreSQLClient) GetVersion() (int64, error) {
-	ret := _m.Called()
+// IsPartitionAttached provides a mock function with given fields: schema, table
+func (_m *PostgreSQLClient) IsPartitionAttached(schema string, table string) (bool, error) {
+	ret := _m.Called(schema, table)
 
-	var r0 int64
+	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (int64, error)); ok {
-		return rf()
+	if rf, ok := ret.Get(0).(func(string, string) (bool, error)); ok {
+		return rf(schema, table)
 	}
-	if rf, ok := ret.Get(0).(func() int64); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string, string) bool); ok {
+		r0 = rf(schema, table)
 	} else {
-		r0 = ret.Get(0).(int64)
+		r0 = ret.Get(0).(bool)
 	}
 
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(schema, table)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -128,25 +211,49 @@ func (_m *PostgreSQLClient) GetVersion() (int64, error) {
 	return r0, r1
 }
 
-// ListPartitions provides a mock function with given fields: table
-func (_m *PostgreSQLClient) ListPartitions(table postgresql.Table) ([]postgresql.Partition, error) {
-	ret := _m.Called(table)
+// IsTableExists provides a mock function with given fields: schema, table
+func (_m *PostgreSQLClient) IsTableExists(schema string, table string) (bool, error) {
+	ret := _m.Called(schema, table)
 
-	var r0 []postgresql.Partition
+	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(postgresql.Table) ([]postgresql.Partition, error)); ok {
-		return rf(table)
+	if rf, ok := ret.Get(0).(func(string, string) (bool, error)); ok {
+		return rf(schema, table)
 	}
-	if rf, ok := ret.Get(0).(func(postgresql.Table) []postgresql.Partition); ok {
-		r0 = rf(table)
+	if rf, ok := ret.Get(0).(func(string, string) bool); ok {
+		r0 = rf(schema, table)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(schema, table)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListPartitions provides a mock function with given fields: schema, table
+func (_m *PostgreSQLClient) ListPartitions(schema string, table string) ([]postgresql.PartitionResult, error) {
+	ret := _m.Called(schema, table)
+
+	var r0 []postgresql.PartitionResult
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) ([]postgresql.PartitionResult, error)); ok {
+		return rf(schema, table)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) []postgresql.PartitionResult); ok {
+		r0 = rf(schema, table)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]postgresql.Partition)
+			r0 = ret.Get(0).([]postgresql.PartitionResult)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(postgresql.Table) error); ok {
-		r1 = rf(table)
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(schema, table)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -159,8 +266,7 @@ func (_m *PostgreSQLClient) ListPartitions(table postgresql.Table) ([]postgresql
 func NewPostgreSQLClient(t interface {
 	mock.TestingT
 	Cleanup(func())
-},
-) *PostgreSQLClient {
+}) *PostgreSQLClient {
 	mock := &PostgreSQLClient{}
 	mock.Mock.Test(t)
 
