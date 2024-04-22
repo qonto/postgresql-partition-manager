@@ -6,16 +6,16 @@ import (
 	"fmt"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
+	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
 )
 
 type Config struct {
-	Debug            bool                                         `mapstructure:"debug"`
-	LogFormat        string                                       `mapstructure:"log-format"`
-	ConnectionURL    string                                       `mapstructure:"connection-url"`
-	StatementTimeout int                                          `mapstructure:"statement-timeout" validate:"required"`
-	LockTimeout      int                                          `mapstructure:"lock-timeout" validate:"required"`
-	Partitions       map[string]postgresql.PartitionConfiguration `mapstructure:"partitions" validate:"required,dive,keys,endkeys,required"`
+	Debug            bool                               `mapstructure:"debug"`
+	LogFormat        string                             `mapstructure:"log-format"`
+	ConnectionURL    string                             `mapstructure:"connection-url"`
+	StatementTimeout int                                `mapstructure:"statement-timeout" validate:"required"`
+	LockTimeout      int                                `mapstructure:"lock-timeout" validate:"required"`
+	Partitions       map[string]partition.Configuration `mapstructure:"partitions" validate:"required,dive,keys,endkeys,required"`
 }
 
 func (c *Config) Check() error {
