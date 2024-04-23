@@ -96,9 +96,9 @@ func IsSupportedStrategy(strategy string) bool {
 func IsSupportedKeyDataType(dataType postgresql.ColumnType) bool {
 	switch dataType {
 	case
-		postgresql.DateColumnType,
-		postgresql.DateTimeColumnType,
-		postgresql.UUIDColumnType:
+		postgresql.Date,
+		postgresql.DateTime,
+		postgresql.UUID:
 		return true
 	}
 

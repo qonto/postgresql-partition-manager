@@ -68,7 +68,7 @@ func TestCheckPartitions(t *testing.T) {
 				t.Errorf("unuspported partition interval in retention table mock")
 			}
 
-			postgreSQLMock.On("GetColumnDataType", table.Schema, table.ParentTable, p.PartitionKey).Return(postgresql.DateColumnType, nil).Once()
+			postgreSQLMock.On("GetColumnDataType", table.Schema, table.ParentTable, p.PartitionKey).Return(postgresql.Date, nil).Once()
 			tables = append(tables, table)
 		}
 
@@ -86,7 +86,7 @@ func TestCheckPartitions(t *testing.T) {
 				t.Errorf("unuspported partition interval in preprovisonned table mock")
 			}
 
-			postgreSQLMock.On("GetColumnDataType", table.Schema, table.ParentTable, p.PartitionKey).Return(postgresql.DateColumnType, nil).Once()
+			postgreSQLMock.On("GetColumnDataType", table.Schema, table.ParentTable, p.PartitionKey).Return(postgresql.Date, nil).Once()
 			tables = append(tables, table)
 		}
 
@@ -148,7 +148,7 @@ func TestCheckMissingPartitions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			fmt.Println("tc.tables", tc.tables)
 			postgreSQLMock.On("GetPartitionSettings", config.Schema, config.Table).Return(string(partition.RangePartitionStrategy), config.PartitionKey, nil).Once()
-			postgreSQLMock.On("GetColumnDataType", config.Schema, config.Table, config.PartitionKey).Return(postgresql.DateColumnType, nil).Once()
+			postgreSQLMock.On("GetColumnDataType", config.Schema, config.Table, config.PartitionKey).Return(postgresql.Date, nil).Once()
 
 			tables := partitionResultToPartition(t, tc.tables, boundDateFormat)
 			postgreSQLMock.On("ListPartitions", config.Schema, config.Table).Return(tables, nil).Once()
@@ -190,7 +190,7 @@ func TestUnsupportedPartitionsStrategy(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			postgreSQLMock.On("GetColumnDataType", config.Schema, config.Table, config.PartitionKey).Return(postgresql.DateColumnType, nil).Once()
+			postgreSQLMock.On("GetColumnDataType", config.Schema, config.Table, config.PartitionKey).Return(postgresql.Date, nil).Once()
 			postgreSQLMock.On("GetPartitionSettings", config.Schema, config.Table).Return(string(tc.strategy), tc.key, nil).Once()
 
 			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, map[string]partition.Configuration{"test": config})

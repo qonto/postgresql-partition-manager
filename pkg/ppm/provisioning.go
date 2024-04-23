@@ -98,13 +98,13 @@ func (p PPM) CreatePartition(partitionConfiguration partition.Configuration, par
 	var lowerBound, upperBound string
 
 	switch partitionKeyType {
-	case postgresql.DateColumnType:
+	case postgresql.Date:
 		lowerBound = partition.LowerBound.Format("2006-01-02")
 		upperBound = partition.UpperBound.Format("2006-01-02")
-	case postgresql.DateTimeColumnType:
+	case postgresql.DateTime:
 		lowerBound = partition.LowerBound.Format("2006-01-02 00:00:00")
 		upperBound = partition.UpperBound.Format("2006-01-02 00:00:00")
-	case postgresql.UUIDColumnType:
+	case postgresql.UUID:
 		lowerBound = uuid7.FromTime(partition.LowerBound)
 		upperBound = uuid7.FromTime(partition.UpperBound)
 	default:
