@@ -61,7 +61,7 @@ func TestProvisioning(t *testing.T) {
 				for _, p := range tc.expectedCreatedPartitions {
 					postgreSQLMock.On("IsTableExists", p.Schema, p.Name).Return(false, nil).Once()
 					postgreSQLMock.On("IsPartitionAttached", p.Schema, p.Name).Return(false, nil).Once()
-					postgreSQLMock.On("GetPartitionSettings", p.Schema, p.ParentTable).Return(string(partition.RangePartitionStrategy), configuration.PartitionKey, nil).Once()
+					postgreSQLMock.On("GetPartitionSettings", p.Schema, p.ParentTable).Return(string(partition.Range), configuration.PartitionKey, nil).Once()
 					postgreSQLMock.On("GetColumnDataType", p.Schema, p.ParentTable, configuration.PartitionKey).Return(postgresql.Date, nil).Once()
 					postgreSQLMock.On("CreateTableLikeTable", p.Schema, p.Name, p.ParentTable).Return(nil).Once()
 					postgreSQLMock.On("AttachPartition", p.Schema, p.Name, p.ParentTable, formatLowerBound(t, p, configuration), formatUpperBound(t, p, configuration)).Return(nil).Once()
@@ -120,7 +120,7 @@ func TestProvisioningFailover(t *testing.T) {
 
 			if tc.createPartitionError == nil {
 				postgreSQLMock.On("IsPartitionAttached", p.Schema, p.Name).Return(false, nil)
-				postgreSQLMock.On("GetPartitionSettings", p.Schema, p.ParentTable).Return(string(partition.RangePartitionStrategy), tc.config.PartitionKey, nil).Once()
+				postgreSQLMock.On("GetPartitionSettings", p.Schema, p.ParentTable).Return(string(partition.Range), tc.config.PartitionKey, nil).Once()
 				postgreSQLMock.On("GetColumnDataType", p.Schema, p.ParentTable, tc.config.PartitionKey).Return(postgresql.Date, nil).Once()
 				postgreSQLMock.On("AttachPartition", p.Schema, p.Name, p.ParentTable, formatLowerBound(t, p, tc.config), formatUpperBound(t, p, tc.config)).Return(nil).Once()
 			}

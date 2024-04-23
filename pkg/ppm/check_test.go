@@ -90,7 +90,7 @@ func TestCheckPartitions(t *testing.T) {
 			tables = append(tables, table)
 		}
 
-		postgreSQLMock.On("GetPartitionSettings", p.Schema, p.Table).Return(string(partition.RangePartitionStrategy), p.PartitionKey, nil).Once()
+		postgreSQLMock.On("GetPartitionSettings", p.Schema, p.Table).Return(string(partition.Range), p.PartitionKey, nil).Once()
 
 		convertedTables := partitionResultToPartition(t, tables, boundDateFormat)
 		postgreSQLMock.On("ListPartitions", p.Schema, p.Table).Return(convertedTables, nil).Once()
@@ -147,7 +147,7 @@ func TestCheckMissingPartitions(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			fmt.Println("tc.tables", tc.tables)
-			postgreSQLMock.On("GetPartitionSettings", config.Schema, config.Table).Return(string(partition.RangePartitionStrategy), config.PartitionKey, nil).Once()
+			postgreSQLMock.On("GetPartitionSettings", config.Schema, config.Table).Return(string(partition.Range), config.PartitionKey, nil).Once()
 			postgreSQLMock.On("GetColumnDataType", config.Schema, config.Table, config.PartitionKey).Return(postgresql.Date, nil).Once()
 
 			tables := partitionResultToPartition(t, tc.tables, boundDateFormat)
@@ -178,12 +178,12 @@ func TestUnsupportedPartitionsStrategy(t *testing.T) {
 	}{
 		{
 			"Unsupported list partition strategy",
-			partition.ListPartitionStrategy,
+			partition.List,
 			"created_at",
 		},
 		{
 			"Unsupported hash partition strategy",
-			partition.HashPartitionStrategy,
+			partition.Hash,
 			"created_at",
 		},
 	}

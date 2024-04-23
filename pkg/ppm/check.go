@@ -97,7 +97,7 @@ func (p *PPM) checkPartitionKey(config partition.Configuration) error {
 }
 
 func IsSupportedStrategy(strategy string) bool {
-	return strategy == string(partition.RangePartitionStrategy)
+	return strategy == string(partition.Range)
 }
 
 func IsSupportedKeyDataType(dataType postgresql.ColumnType) bool {
