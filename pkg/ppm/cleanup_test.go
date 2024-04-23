@@ -81,7 +81,7 @@ func TestCleanupPartitions(t *testing.T) {
 				for _, p := range tc.expectedRemovedPartitions {
 					postgreSQLMock.On("DetachPartitionConcurrently", p.Schema, p.Name, p.ParentTable).Return(nil).Once()
 
-					if partitionConfiguration.CleanupPolicy == partition.DropCleanupPolicy {
+					if partitionConfiguration.CleanupPolicy == partition.Drop {
 						postgreSQLMock.On("DropTable", p.Schema, p.Name).Return(nil).Once()
 					}
 				}

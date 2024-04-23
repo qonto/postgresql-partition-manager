@@ -42,7 +42,7 @@ func (p PPM) CleanupPartitions() error {
 
 			p.logger.Info("Partition detached", "schema", partition.Schema, "table", partition.Name, "parent_table", partition.ParentTable)
 
-			if config.CleanupPolicy == partition_pkg.DropCleanupPolicy {
+			if config.CleanupPolicy == partition_pkg.Drop {
 				err := p.DeletePartition(partition)
 				if err != nil {
 					partitionContainAnError = true
