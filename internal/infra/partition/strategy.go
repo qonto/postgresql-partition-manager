@@ -1,9 +1,9 @@
 package partition
 
 const (
-	RangePartitionStrategy PartitionStrategy = "RANGE"
-	ListPartitionStrategy  PartitionStrategy = "LIST"
-	HashPartitionStrategy  PartitionStrategy = "HASH"
+	Range PartitionStrategy = "RANGE"
+	List  PartitionStrategy = "LIST"
+	Hash  PartitionStrategy = "HASH"
 )
 
 type PartitionStrategy string
