@@ -30,17 +30,17 @@ func (p Configuration) GeneratePartition(forDate time.Time) (Partition, error) {
 	var lowerBound, upperBound time.Time
 
 	switch p.Interval {
-	case DailyInterval:
+	case Daily:
 		suffix = forDate.Format("2006_01_02")
 		lowerBound, upperBound = getDailyBounds(forDate)
-	case WeeklyInterval:
+	case Weekly:
 		year, week := forDate.ISOWeek()
 		suffix = fmt.Sprintf("%d_w%02d", year, week)
 		lowerBound, upperBound = getWeeklyBounds(forDate)
-	case MonthlyInterval:
+	case Monthly:
 		suffix = forDate.Format("2006_01")
 		lowerBound, upperBound = getMonthlyBounds(forDate)
-	case YearlyInterval:
+	case Yearly:
 		suffix = forDate.Format("2006")
 		lowerBound, upperBound = getYearlyBounds(forDate)
 	default:
@@ -100,15 +100,15 @@ func (p Configuration) GetPreProvisionedPartitions(forDate time.Time) ([]Partiti
 
 func (p Configuration) getPrevDate(forDate time.Time, i int) (t time.Time, err error) {
 	switch p.Interval {
-	case DailyInterval:
+	case Daily:
 		t = forDate.AddDate(0, 0, -i)
-	case WeeklyInterval:
-		t = forDate.AddDate(0, 0, -i*daysInAweek)
-	case MonthlyInterval:
+	case Weekly:
+		t = forDate.AddDate(0, 0, -i*nbDaysInAWeek)
+	case Monthly:
 		year, month, _ := forDate.Date()
 
 		t = time.Date(year, month-time.Month(i), 1, 0, 0, 0, 0, forDate.Location())
-	case YearlyInterval:
+	case Yearly:
 		year, _, _ := forDate.Date()
 
 		t = time.Date(year-i, 1, 1, 0, 0, 0, 0, forDate.Location())
@@ -121,15 +121,15 @@ func (p Configuration) getPrevDate(forDate time.Time, i int) (t time.Time, err e
 
 func (p Configuration) getNextDate(forDate time.Time, i int) (t time.Time, err error) {
 	switch p.Interval {
-	case DailyInterval:
+	case Daily:
 		t = forDate.AddDate(0, 0, i)
-	case WeeklyInterval:
-		t = forDate.AddDate(0, 0, i*daysInAweek)
-	case MonthlyInterval:
+	case Weekly:
+		t = forDate.AddDate(0, 0, i*nbDaysInAWeek)
+	case Monthly:
 		year, month, _ := forDate.Date()
 
 		t = time.Date(year, month+time.Month(i), 1, 0, 0, 0, 0, forDate.Location())
-	case YearlyInterval:
+	case Yearly:
 		year, _, _ := forDate.Date()
 
 		t = time.Date(year+i, 1, 1, 0, 0, 0, 0, forDate.Location())

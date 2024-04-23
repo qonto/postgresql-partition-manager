@@ -9,7 +9,7 @@ import (
 
 const (
 	UUIDv7Version uuid.Version = 7
-	daysInAweek   int          = 7
+	nbDaysInAWeek int          = 7
 )
 
 var (
@@ -30,7 +30,7 @@ func getDailyBounds(date time.Time) (lowerBound, upperBound time.Time) {
 
 func getWeeklyBounds(date time.Time) (lowerBound, upperBound time.Time) {
 	lowerBound = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.UTC().Location()).AddDate(0, 0, -int(date.Weekday()-time.Monday))
-	upperBound = lowerBound.AddDate(0, 0, daysInAweek)
+	upperBound = lowerBound.AddDate(0, 0, nbDaysInAWeek)
 
 	return
 }
