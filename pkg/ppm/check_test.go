@@ -41,12 +41,12 @@ func TestCheckPartitions(t *testing.T) {
 	boundDateFormat := "2006-01-02" //nolint:goconst
 
 	partitions := map[string]partition.Configuration{}
-	partitions["daily partition"] = partition.Configuration{Schema: "app", Table: "daily_table1", PartitionKey: "column", Interval: partition.DailyInterval, Retention: 2, PreProvisioned: 2}
-	partitions["daily partition without retention"] = partition.Configuration{Schema: "public", Table: "daily_table2", PartitionKey: "created_at", Interval: partition.DailyInterval, Retention: 0, PreProvisioned: 1}
-	partitions["daily partition without preprovisioned"] = partition.Configuration{Schema: "public", Table: "daily_table3", PartitionKey: "column", Interval: partition.DailyInterval, Retention: 4, PreProvisioned: 0}
-	partitions["weekly partition"] = partition.Configuration{Schema: "public", Table: "weekly_table", PartitionKey: "weekly", Interval: partition.WeeklyInterval, Retention: 2, PreProvisioned: 2}
-	partitions["monthly partition"] = partition.Configuration{Schema: "public", Table: "monthly_table", PartitionKey: "month", Interval: partition.MonthlyInterval, Retention: 2, PreProvisioned: 2}
-	partitions["yearly partition"] = partition.Configuration{Schema: "public", Table: "yearly_table", PartitionKey: "year", Interval: partition.YearlyInterval, Retention: 4, PreProvisioned: 4}
+	partitions["daily partition"] = partition.Configuration{Schema: "app", Table: "daily_table1", PartitionKey: "column", Interval: partition.Daily, Retention: 2, PreProvisioned: 2}
+	partitions["daily partition without retention"] = partition.Configuration{Schema: "public", Table: "daily_table2", PartitionKey: "created_at", Interval: partition.Daily, Retention: 0, PreProvisioned: 1}
+	partitions["daily partition without preprovisioned"] = partition.Configuration{Schema: "public", Table: "daily_table3", PartitionKey: "column", Interval: partition.Daily, Retention: 4, PreProvisioned: 0}
+	partitions["weekly partition"] = partition.Configuration{Schema: "public", Table: "weekly_table", PartitionKey: "weekly", Interval: partition.Weekly, Retention: 2, PreProvisioned: 2}
+	partitions["monthly partition"] = partition.Configuration{Schema: "public", Table: "monthly_table", PartitionKey: "month", Interval: partition.Monthly, Retention: 2, PreProvisioned: 2}
+	partitions["yearly partition"] = partition.Configuration{Schema: "public", Table: "yearly_table", PartitionKey: "year", Interval: partition.Yearly, Retention: 4, PreProvisioned: 4}
 
 	// Build mock for each partitions
 	for _, p := range partitions {
@@ -56,13 +56,13 @@ func TestCheckPartitions(t *testing.T) {
 
 		for i := 0; i <= p.Retention; i++ {
 			switch p.Interval {
-			case partition.DailyInterval:
+			case partition.Daily:
 				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, -i))
-			case partition.WeeklyInterval:
+			case partition.Weekly:
 				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, -i*7))
-			case partition.MonthlyInterval:
+			case partition.Monthly:
 				table, _ = p.GeneratePartition(time.Now().AddDate(0, -i, 0))
-			case partition.YearlyInterval:
+			case partition.Yearly:
 				table, _ = p.GeneratePartition(time.Now().AddDate(-i, 0, 0))
 			default:
 				t.Errorf("unuspported partition interval in retention table mock")
@@ -74,13 +74,13 @@ func TestCheckPartitions(t *testing.T) {
 
 		for i := 0; i <= p.PreProvisioned; i++ {
 			switch p.Interval {
-			case partition.DailyInterval:
+			case partition.Daily:
 				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, i))
-			case partition.WeeklyInterval:
+			case partition.Weekly:
 				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, i*7))
-			case partition.MonthlyInterval:
+			case partition.Monthly:
 				table, _ = p.GeneratePartition(time.Now().AddDate(0, i, 0))
-			case partition.YearlyInterval:
+			case partition.Yearly:
 				table, _ = p.GeneratePartition(time.Now().AddDate(i, 0, 0))
 			default:
 				t.Errorf("unuspported partition interval in preprovisonned table mock")
@@ -108,7 +108,7 @@ func TestCheckMissingPartitions(t *testing.T) {
 		Schema:         "public",
 		Table:          "my_table",
 		PartitionKey:   "created_at",
-		Interval:       partition.DailyInterval,
+		Interval:       partition.Daily,
 		Retention:      2,
 		PreProvisioned: 2,
 	}
@@ -166,7 +166,7 @@ func TestUnsupportedPartitionsStrategy(t *testing.T) {
 		Schema:         "public",
 		Table:          "my_table",
 		PartitionKey:   "created_at",
-		Interval:       partition.DailyInterval,
+		Interval:       partition.Daily,
 		Retention:      2,
 		PreProvisioned: 2,
 	}

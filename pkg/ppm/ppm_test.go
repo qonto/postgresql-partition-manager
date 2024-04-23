@@ -13,11 +13,11 @@ func formatLowerBound(t *testing.T, p partition.Partition, config partition.Conf
 	var dateFormat string
 
 	switch config.Interval {
-	case partition.DailyInterval, partition.WeeklyInterval:
+	case partition.Daily, partition.Weekly:
 		dateFormat = "2006-01-02"
-	case partition.MonthlyInterval:
+	case partition.Monthly:
 		dateFormat = "2006-01"
-	case partition.YearlyInterval:
+	case partition.Yearly:
 		dateFormat = "2006"
 	}
 
@@ -30,11 +30,11 @@ func formatUpperBound(t *testing.T, p partition.Partition, config partition.Conf
 	var dateFormat string
 
 	switch config.Interval {
-	case partition.DailyInterval, partition.WeeklyInterval:
+	case partition.Daily, partition.Weekly:
 		dateFormat = "2006-01-02"
-	case partition.MonthlyInterval:
+	case partition.Monthly:
 		dateFormat = "2006-01"
-	case partition.YearlyInterval:
+	case partition.Yearly:
 		dateFormat = "2006"
 	}
 
