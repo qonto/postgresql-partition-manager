@@ -34,13 +34,13 @@ func (p Postgres) GetColumnDataType(schema, table, column string) (ColumnType, e
 
 	switch columnType {
 	case "date":
-		return DateColumnType, nil
+		return Date, nil
 	case "timestamp":
-		return DateTimeColumnType, nil
+		return DateTime, nil
 	case "timestamp without time zone":
-		return DateTimeColumnType, nil
+		return DateTime, nil
 	case "uuid":
-		return UUIDColumnType, nil
+		return UUID, nil
 	default:
 		return "", fmt.Errorf("%w: %s", ErrUnsupportedPartitionKeyType, columnType)
 	}
