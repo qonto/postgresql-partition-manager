@@ -10,8 +10,8 @@ type (
 )
 
 const (
-	DropCleanupPolicy   CleanupPolicy = "drop"
-	DetachCleanupPolicy CleanupPolicy = "detach"
+	Drop   CleanupPolicy = "drop"
+	Detach CleanupPolicy = "detach"
 )
 
 type Configuration struct {
