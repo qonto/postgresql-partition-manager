@@ -3,6 +3,7 @@ package ppm
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
@@ -16,6 +17,12 @@ var (
 	ErrUnexpectedOrMissingPartitions = errors.New("unexpected or missing partitions")
 	ErrInvalidPartitionConfiguration = errors.New("at least one partition contains an invalid configuration")
 )
+
+var SupportedPartitionKeyDataType = []postgresql.ColumnType{
+	postgresql.Date,
+	postgresql.DateTime,
+	postgresql.UUID,
+}
 
 func (p *PPM) CheckPartitions() error {
 	partitionContainsAnError := false
@@ -94,15 +101,7 @@ func IsSupportedStrategy(strategy string) bool {
 }
 
 func IsSupportedKeyDataType(dataType postgresql.ColumnType) bool {
-	switch dataType {
-	case
-		postgresql.Date,
-		postgresql.DateTime,
-		postgresql.UUID:
-		return true
-	}
-
-	return false
+	return slices.Contains(SupportedPartitionKeyDataType, dataType)
 }
 
 func (p *PPM) comparePartitions(existingTables, expectedTables []partition.Partition) (unexpectedTables, missingTables, incorrectBounds []partition.Partition) {
