@@ -35,22 +35,22 @@ func TestGetColumn(t *testing.T) {
 		{
 			"Date",
 			"date",
-			DateColumnType,
+			Date,
 		},
 		{
 			"Date time",
 			"timestamp",
-			DateTimeColumnType,
+			DateTime,
 		},
 		{
 			"Date time without time zone",
 			"timestamp without time zone",
-			DateTimeColumnType,
+			DateTime,
 		},
 		{
 			"UUID",
 			"uuid",
-			UUIDColumnType,
+			UUID,
 		},
 	}
 
