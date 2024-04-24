@@ -29,6 +29,8 @@ func (p PPM) ProvisioningPartitions() error {
 		return ErrPartitionProvisioningFailed
 	}
 
+	p.logger.Info("All partitions are correctly provisioned")
+
 	return nil
 }
 

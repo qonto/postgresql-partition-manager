@@ -42,6 +42,8 @@ func (p *PPM) CheckPartitions() error {
 		return ErrInvalidPartitionConfiguration
 	}
 
+	p.logger.Info("All partitions are correctly configured")
+
 	return nil
 }
 

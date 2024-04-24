@@ -61,6 +61,8 @@ func (p PPM) CleanupPartitions() error {
 		return ErrPartitionCleanupFailed
 	}
 
+	p.logger.Info("All partitions are cleaned")
+
 	return nil
 }
 
