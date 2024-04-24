@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 
 	"github.com/qonto/postgresql-partition-manager/internal/infra/config"
@@ -50,11 +49,11 @@ var AllCmd = &cobra.Command{
 	Short: "Perform partitions provisioning, cleanup, and check",
 	Long:  "Perform partitions provisioning, cleanup, and check",
 	Run: func(cmd *cobra.Command, args []string) {
-		client, logger := initCmd()
+		client := initCmd()
 
-		provisioningCmd(client, logger)
-		cleanupCmd(client, logger)
-		checkCmd(client, logger)
+		provisioningCmd(client)
+		cleanupCmd(client)
+		checkCmd(client)
 	},
 }
 
@@ -63,8 +62,8 @@ var CheckCmd = &cobra.Command{
 	Short: "Check existing partitions",
 	Long:  "Check existing partitions",
 	Run: func(cmd *cobra.Command, args []string) {
-		client, logger := initCmd()
-		checkCmd(client, logger)
+		client := initCmd()
+		checkCmd(client)
 	},
 }
 
@@ -73,8 +72,8 @@ var CleanupCmd = &cobra.Command{
 	Short: "Remove outdated partitions",
 	Long:  "Remove outdated partitions",
 	Run: func(cmd *cobra.Command, args []string) {
-		client, logger := initCmd()
-		cleanupCmd(client, logger)
+		client := initCmd()
+		cleanupCmd(client)
 	},
 }
 
@@ -83,12 +82,12 @@ var ProvisioningCmd = &cobra.Command{
 	Short: "Create and attach new partitions",
 	Long:  "Create and attach new partitions",
 	Run: func(cmd *cobra.Command, args []string) {
-		client, logger := initCmd()
-		provisioningCmd(client, logger)
+		client := initCmd()
+		provisioningCmd(client)
 	},
 }
 
-func initCmd() (*ppm.PPM, *slog.Logger) {
+func initCmd() *ppm.PPM {
 	var config config.Config
 
 	if err := viper.Unmarshal(&config); err != nil {
@@ -128,29 +127,23 @@ func initCmd() (*ppm.PPM, *slog.Logger) {
 		os.Exit(DatabaseErrorExitCode)
 	}
 
-	return client, log
+	return client
 }
 
-func checkCmd(client *ppm.PPM, logger *slog.Logger) {
+func checkCmd(client *ppm.PPM) {
 	if err := client.CheckPartitions(); err != nil {
 		os.Exit(PartitionsCheckFailedExitCode)
 	}
-
-	logger.Info("All partitions are correctly configured")
 }
 
-func cleanupCmd(client *ppm.PPM, logger *slog.Logger) {
+func cleanupCmd(client *ppm.PPM) {
 	if err := client.CleanupPartitions(); err != nil {
 		os.Exit(PartitionsCleanupFailedExitCode)
 	}
-
-	logger.Info("All partitions are cleaned")
 }
 
-func provisioningCmd(client *ppm.PPM, logger *slog.Logger) {
+func provisioningCmd(client *ppm.PPM) {
 	if err := client.ProvisioningPartitions(); err != nil {
 		os.Exit(PartitionsProvisioningFailedExitCode)
 	}
-
-	logger.Info("All partitions are correctly provisioned")
 }
