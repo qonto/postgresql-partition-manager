@@ -86,6 +86,7 @@ func (p *PPM) checkPartitionKey(config partition.Configuration) error {
 
 	if !IsSupportedStrategy(partitionStrategy) {
 		p.logger.Warn("Unsupported partition strategy", "strategy", partitionStrategy)
+
 		return ErrUnsupportedPartitionStrategy
 	}
 
