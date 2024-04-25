@@ -1,0 +1,28 @@
+---
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-yaml
+        exclude: configs/helm/templates/|scripts/kubernetesdev/templates/
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: detect-private-key
+      - id: check-symlinks
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.54.2
+    hooks:
+      - id: golangci-lint
+  - repo: https://github.com/Bahjat/pre-commit-golang
+    rev: v1.0.3
+    hooks:
+      - id: gofumpt  # requires https://github.com/mvdan/gofumpt
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.37.0
+    hooks:
+      - id: markdownlint  # requires https://github.com/DavidAnson/markdownlint-cli2
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.32.0
+    hooks:
+      - id: yamllint  # requires https://github.com/adrienverge/yamllint

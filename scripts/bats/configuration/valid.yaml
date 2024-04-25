@@ -1,0 +1,16 @@
+---
+debug: true
+
+log-format: text
+
+connection-url: postgres://postgres:hackme@localhost/unittest
+
+partitions:
+  by_date:
+    schema: public
+    table: by_date
+    partitionKey: created_at
+    interval: yearly
+    retention: 1
+    preProvisioned: 1
+    cleanupPolicy: drop

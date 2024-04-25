@@ -1,0 +1,181 @@
+---
+name: unittest
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - "*"
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: go
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - name: Install dependencies
+        run: |
+          go get .
+      - name: Build
+        run: make build
+      - name: Run Go tests
+        run: make test
+      - name: Code Coverage Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: coverage.xml
+          badge: true
+          fail_below_min: true
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: both
+          thresholds: '60 80'
+      - uses: jwalton/gh-find-current-pr@v1
+        id: finder
+      - name: Add Coverage PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          number: ${{ steps.finder.outputs.pr }}
+          path: code-coverage-results.md
+          recreate: true
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary
+          path: postgresql-partition-manager
+          if-no-files-found: error
+          retention-days: 1
+
+  e2e:
+    name: End-to-end
+    needs: go
+    strategy:
+      matrix:
+        postgres:
+          - postgres:14
+          - postgres:15
+          - postgres:16
+    runs-on: ubuntu-latest
+    env:
+      BATS_LIB_PATH: "${{ github.workspace }}/test/bats/lib/"
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: hackme
+      PGDATABASE: unittest
+    services:
+      postgres:
+        image: ${{ matrix.postgres }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --hostname postgres
+        env:
+          POSTGRES_PASSWORD: hackme
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bats and bats libs
+        uses: bats-core/bats-action@2.0.0
+        with:
+          support-path: ${{ github.workspace }}/test/bats/lib/bats-support
+          assert-path: ${{ github.workspace }}/test/bats/lib/bats-assert
+          file-install: false  # Unused
+          detik-install: false  # Unused
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: binary
+
+      # File permissions are not maintained during artifact upload/download
+      - name: Move binary to local executable
+        run: mv postgresql-partition-manager /usr/local/bin && chmod +x /usr/local/bin/postgresql-partition-manager
+
+      - name: Run bats
+        run: make bats-test
+
+  helm:
+    name: helm
+    runs-on: ubuntu-latest
+    env:
+      HELM_UNITTEST_VERSION: v0.3.5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install helm-unittest
+        run: helm plugin install --version $HELM_UNITTEST_VERSION https://github.com/helm-unittest/helm-unittest.git
+      - name: Run Helm test
+        run: make helm-test
+
+  kubeconform:
+    name: kubeconform
+    runs-on: ubuntu-latest
+    env:
+      KUBECONFORM_VERSION: 0.6.2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kubeconform
+        run: |
+          curl -sSLo /tmp/kubeconform.tar.gz "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+          && tar -C /usr/local/bin/ -xzvf /tmp/kubeconform.tar.gz
+      - name: Run Kubeconform test
+        run: make kubeconform-test
+
+  debian:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Set up QEMU for ARM64 build
+        uses: docker/setup-qemu-action@v3
+      - uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean --skip=publish --skip=docker --snapshot
+        env:
+          GORELEASER_CURRENT_TAG: 0.0.0
+      - name: Run Debian package tests
+        run: make debian-test-ci
+
+#  checkcov:
+#    permissions:
+#      security-events: write  # for github/codeql-action/upload-sarif to upload SARIF results
+#      actions: read  # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#      - name: Checkov GitHub Action
+#        uses: bridgecrewio/checkov-action@v12
+#        with:
+#          # This will add both a CLI output to the console and create a results.sarif file
+#          output_format: cli,sarif
+#          output_file_path: console,results.sarif
+#      - name: Upload SARIF file
+#        uses: github/codeql-action/upload-sarif@v3
+#        # Results are generated only on a success or failure
+#        # this is required since GitHub by default won't run the next step
+#        # when the previous one has failed. Security checks that do not pass will 'fail'.
+#        # An alternative is to add `continue-on-error: true` to the previous step
+#        # Or 'soft_fail: true' to checkov.
+#        if: success() || failure()
+#        with:
+#          sarif_file: results.sarif

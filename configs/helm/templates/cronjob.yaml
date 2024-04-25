@@ -1,0 +1,108 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "postgresql-partition-manager.fullname" . }}
+  labels:
+    {{- include "postgresql-partition-manager.labels" . | nindent 4 }}
+spec:
+  suspend: {{ .Values.cronjob.suspend }}
+  schedule: {{ .Values.cronjob.schedule | quote }}
+  timeZone: {{ .Values.cronjob.timeZone }}
+  successfulJobsHistoryLimit: {{ .Values.cronjob.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cronjob.failedJobsHistoryLimit }}
+  concurrencyPolicy: {{ .Values.cronjob.concurrencyPolicy }}
+  {{- if .Values.cronjob.startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ .Values.cronjob.startingDeadlineSeconds }}
+  {{- end }}
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: {{ .Values.cronjob.ttlSecondsAfterFinished }}
+      backoffLimit: {{ .Values.cronjob.backoffLimit }}
+      template:
+        metadata:
+          labels:
+            {{- include "postgresql-partition-manager.labels" . | nindent 12 }}
+            {{- with .Values.podLabels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if not .Values.podAnnotations }}
+          annotations:
+            {{- range $key, $val := .Values.podAnnotations }}
+            {{ $key }}: {{ $val | quote }}
+            {{- end }}
+          {{- end }}
+        spec:
+          automountServiceAccountToken: {{ .Values.cronjob.automountServiceAccountToken }}
+          terminationGracePeriodSeconds: {{ .Values.cronjob.terminationGracePeriodSeconds }}
+          {{- if .Values.cronjob.activeDeadlineSeconds }}
+          activeDeadlineSeconds: {{ .Values.cronjob.activeDeadlineSeconds }}
+          {{- end }}
+          restartPolicy: {{ .Values.cronjob.restartPolicy }}
+          securityContext:
+            {{- toYaml .Values.podSecurityContext | nindent 12 }}
+          containers:
+          - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            imagePullPolicy: {{ .Values.imagePullPolicy }}
+            name: {{ include "postgresql-partition-manager.name" . }}
+            env:
+              {{- range $key, $val := .Values.cronjob.env }}
+              - name: {{ $key | quote }}
+                value: {{ $val | quote }}
+              {{- end }}
+              {{- if .Values.cronjob.postgresqlUserSecret }}
+              - name: PGUSER
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ .Values.cronjob.postgresqlUserSecret.ref }}
+                    key: {{ .Values.cronjob.postgresqlUserSecret.key }}
+              {{- end }}
+              {{- if .Values.cronjob.postgresqlPasswordSecret }}
+              - name: PGPASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ .Values.cronjob.postgresqlPasswordSecret.ref }}
+                    key: {{ .Values.cronjob.postgresqlPasswordSecret.key }}
+              {{- end }}
+            {{- if .Values.cronjob.command }}
+            command:
+            {{- range .Values.cronjob.command }}
+            - {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.cronjob.args }}
+            args:
+            {{- range .Values.cronjob.args }}
+              - {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            securityContext:
+              {{- toYaml .Values.securityContext | nindent 14 }}
+            {{- with .Values.cronjob.resources }}
+            resources:
+{{ toYaml . | indent 14 }}
+            {{- end }}
+            volumeMounts:
+              - name: configuration
+                mountPath: /app/postgresql-partition-manager.yaml
+                subPath: postgresql-partition-manager.yaml
+                readOnly: true
+          volumes:
+            - name: configuration
+              configMap:
+                name: {{ include "postgresql-partition-manager.fullname" . }}
+                items:
+                  - key: configuration
+                    path: postgresql-partition-manager.yaml
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

@@ -1,0 +1,28 @@
+---
+cronjob:
+  env:
+    POSTGRESQL_PARTITION_MANAGER_DEBUG: true
+
+podSecurityContext:
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+
+nodeSelector:
+  disktype: ssd
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/os
+              operator: In
+              values:
+                - linux
+
+tolerations:
+  - key: "key1"
+    operator: "Exists"
+    effect: "NoSchedule"

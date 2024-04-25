@@ -1,0 +1,110 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: 'postgres:16'
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-configuration
+                  key: database
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+          volumeMounts:
+            - name: postgresdata
+              mountPath: /var/lib/postgresql/data
+            - name: seeds
+              mountPath: /docker-entrypoint-initdb.d/seeds.sql
+              subPath: seeds.sql
+              readOnly: true
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - "-U"
+                - "{{ .Values.postgresUser }}"
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - "-U"
+                - "{{ .Values.postgresUser }}"
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            periodSeconds: 20
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            exec:
+              command:
+                - pg_isready
+                - "-U"
+                - "{{ .Values.postgresUser }}"
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            periodSeconds: 10
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              add:
+                - CHOWN
+                - DAC_OVERRIDE
+                - FOWNER
+                - SETGID
+                - SETUID
+              drop:
+                - ALL
+          args:
+            - "-c"
+            - log_statement=all
+            - "-c"
+            - "log_line_prefix='%t:%r:user=%u,database=%d,app=%a,query_id=%Q:[%p]:'"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+      volumes:
+        - name: postgresdata
+          persistentVolumeClaim:
+            claimName: postgres-volume-claim
+        - name: seeds
+          configMap:
+            name: postgres-seeds
+            items:
+              - key: seeds
+                path: seeds.sql

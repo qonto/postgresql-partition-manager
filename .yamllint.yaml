@@ -1,0 +1,13 @@
+---
+extends: default
+
+rules:
+  line-length:
+    max: 200
+    level: warning
+
+ignore:
+  - dist/
+  - configs/helm/templates/*.yaml  # Helm templates are invalid due to Go template language
+  - scripts/kubernetesdev/templates/configmap_configuration.yaml
+  - scripts/kubernetesdev/templates/secret.yaml

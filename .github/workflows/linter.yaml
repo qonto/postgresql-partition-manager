@@ -1,0 +1,33 @@
+---
+name: linter
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - "*"
+
+permissions:
+  contents: read
+
+jobs:
+  golangci:
+    name: golangci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: false
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v1.54
+
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint YAML files
+        run: yamllint .  # YAML lint is already installed in ubuntu-latest
