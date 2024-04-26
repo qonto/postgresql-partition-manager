@@ -4,6 +4,9 @@ BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT_SHA=$(shell git rev-parse HEAD)
 BINARY=postgresql-partition-manager
 ARCHITECTURE=$(shell uname -m)
+HELM_CHART_NAME=postgresql-partition-manager-chart
+RELEASE_VERSION=$(shell jq .tag dist/metadata.json)
+AWS_ECR_PUBLIC_ORGANIZATION=qonto
 
 all: build
 
@@ -30,6 +33,10 @@ bats-test:
 .PHONY: helm-test
 helm-test:
 	helm unittest configs/helm
+
+.PHONY: helm-release
+helm-release:
+	./scripts/helm-release.sh $(HELM_CHART_NAME) configs/helm $(RELEASE_VERSION) $(AWS_ECR_PUBLIC_ORGANIZATION)
 
 .PHONY: kubeconform-test
 kubeconform-test:
