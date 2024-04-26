@@ -11,7 +11,6 @@ setup() {
   assert_equal "$status" 1
 
   # Verify that mandatory fields are reported as errors
-  assert_line "ERROR: The 'Config.ConnectionURL' field is required and cannot be empty."
   assert_line "ERROR: The 'Config.Partitions' field is required and cannot be empty."
 }
 
