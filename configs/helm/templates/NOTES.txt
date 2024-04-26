@@ -2,11 +2,11 @@ PostgreSQL Partition Manager is deployed.
 
 1. Get Cronjob
 
-  kubectl --namespace {{ .Release.Namespace }} describe cronjob {{ .Release.Name }}-postgresql-partition-manager
+  kubectl --namespace {{ .Release.Namespace }} describe cronjob {{ .Release.Name }}-{{ .Chart.Name }}
 
 1. Optional. Manually trigger CRON job manually
 
-  kubectl --namespace {{ .Release.Namespace }} create job --from=cronjob/{{ .Release.Name }}-postgresql-partition-manager ppm-manually-triggered
+  kubectl --namespace {{ .Release.Namespace }} create job --from=cronjob/{{ .Release.Name }}-{{ .Chart.Name }} ppm-manually-triggered
 
   And see job execution logs:
 

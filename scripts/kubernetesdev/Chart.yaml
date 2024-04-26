@@ -8,6 +8,7 @@ version: 0.0.0
 appVersion: 0.0.0
 
 dependencies:
-  - name: postgresql-partition-manager
+  - name: postgresql-partition-manager-chart
+    alias: postgresql-partition-manager
     version: "~0"
     repository: "file://../../configs/helm"

@@ -10,7 +10,7 @@ tests:
           of: CronJob
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-postgresql-partition-manager
+          value: RELEASE-NAME-postgresql-partition-manager-chart
       - equal:
           path: spec.suspend
           value: false

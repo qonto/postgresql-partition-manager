@@ -6,7 +6,7 @@ type: application
 version: 0.0.0
 appVersion: 0.0.0
 
-name: postgresql-partition-manager
+name: postgresql-partition-manager-chart
 description: Manages PostgreSQL partition
 home: https://github.com/qonto/postgresql-partition-manager
 sources:
