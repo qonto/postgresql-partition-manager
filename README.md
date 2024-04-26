@@ -61,7 +61,7 @@ PPM is available as a Docker image, Debian package, and Binary.
     Copy the following template:
 
     ```bash
-    cat > values.yaml
+    cat > values.yaml << EOF
     cronjob:
       postgresqlPasswordSecret:
         ref: postgresql-credentials # Specify the Kubernetes secret name containing the PostgreSQL credentials
@@ -108,7 +108,7 @@ PPM is available as a Docker image, Debian package, and Binary.
     oci://public.ecr.aws/qonto/postgresql-partition-manager-chart \
     --version ${POSTGRESQL_PARTION_MANAGER} \
     --install \
-    --namespace ${KUBERNETES_NAMESPACE}
+    --namespace ${KUBERNETES_NAMESPACE} \
     --values values.yaml
     ```
 
@@ -123,7 +123,7 @@ PPM is available as a Docker image, Debian package, and Binary.
     Trigger job manually:
 
     ```bash
-    kubectl create job --namespace ${KUBERNETES_NAMESPACE} --from=cronjob/${HELM_RELEASE_NAME}-postgresql-partition-manager ${MANUAL_JOB}
+    kubectl create job --namespace ${KUBERNETES_NAMESPACE} --from=cronjob/${HELM_RELEASE_NAME}-postgresql-partition-manager-chart ${MANUAL_JOB}
     ```
 
     Check cronjob execution:
