@@ -22,6 +22,6 @@ The project is using [Semantic Versioning](https://semver.org):
 The following steps must be done by one of the PostgreSQL Partition Manager Maintainers:
 
 - Verify the CI tests pass before continuing.
-- Create a tag using the current `HEAD` of the `main` branch by using `git tag v<major>.<minor>.<patch>`
-- Push the tag to upstream using `git push upstream v<major>.<minor>.<patch>`
+- Create a tag using the current `HEAD` of the `main` branch by using `git tag <major>.<minor>.<patch>`
+- Push the tag to upstream using `git push upstream <major>.<minor>.<patch>`
 - This tag will kick-off the [GitHub Release Workflow](https://github.com/qonto/postgresql-partition-manager/blob/main/.github/workflows/release.yaml), which will auto-generate GitHub release with multi-architecture binaries and Debian package, publish new release of amd64/arm64 docker images and Helm chart into the container registry
