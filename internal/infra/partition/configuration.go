@@ -18,7 +18,7 @@ type Configuration struct {
 	Schema         string        `mapstructure:"schema" validate:"required"`
 	Table          string        `mapstructure:"table" validate:"required"`
 	PartitionKey   string        `mapstructure:"partitionKey" validate:"required"`
-	Interval       Interval      `mapstructure:"interval" validate:"required,oneof=daily weekly monthly yearly"`
+	Interval       Interval      `mapstructure:"interval" validate:"required,oneof=daily weekly monthly quarterly yearly"`
 	Retention      int           `mapstructure:"retention" validate:"required,gt=0"`
 	PreProvisioned int           `mapstructure:"preProvisioned" validate:"required,gt=0"`
 	CleanupPolicy  CleanupPolicy `mapstructure:"cleanupPolicy" validate:"required,oneof=drop detach"`
@@ -40,6 +40,24 @@ func (p Configuration) GeneratePartition(forDate time.Time) (Partition, error) {
 	case Monthly:
 		suffix = forDate.Format("2006_01")
 		lowerBound, upperBound = getMonthlyBounds(forDate)
+	case Quarterly:
+		year, month, _ := forDate.Date()
+
+		var quarter int
+
+		switch {
+		case month >= 1 && month <= 3:
+			quarter = 1
+		case month >= 4 && month <= 6:
+			quarter = 2
+		case month >= 7 && month <= 9:
+			quarter = 3
+		case month >= 10 && month <= 12:
+			quarter = 4
+		}
+
+		suffix = fmt.Sprintf("%d_q%d", year, quarter)
+		lowerBound, upperBound = getQuarterlyBounds(forDate)
 	case Yearly:
 		suffix = forDate.Format("2006")
 		lowerBound, upperBound = getYearlyBounds(forDate)
@@ -108,6 +126,8 @@ func (p Configuration) getPrevDate(forDate time.Time, i int) (t time.Time, err e
 		year, month, _ := forDate.Date()
 
 		t = time.Date(year, month-time.Month(i), 1, 0, 0, 0, 0, forDate.Location())
+	case Quarterly:
+		t = forDate.AddDate(0, -i*nbMonthsInAQuarter, 0)
 	case Yearly:
 		year, _, _ := forDate.Date()
 
@@ -129,6 +149,8 @@ func (p Configuration) getNextDate(forDate time.Time, i int) (t time.Time, err e
 		year, month, _ := forDate.Date()
 
 		t = time.Date(year, month+time.Month(i), 1, 0, 0, 0, 0, forDate.Location())
+	case Quarterly:
+		t = forDate.AddDate(0, i*nbMonthsInAQuarter, 0)
 	case Yearly:
 		year, _, _ := forDate.Date()
 
