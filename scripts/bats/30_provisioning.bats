@@ -2,6 +2,7 @@ load 'test/libs/dependencies'
 load 'test/libs/partitions'
 load 'test/libs/seeds'
 load 'test/libs/sql'
+load 'test/libs/time'
 
 setup() {
   bats_load_library bats-support
@@ -66,7 +67,6 @@ EOF
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
   run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
-
 
   assert_success
   assert_output --partial "All partitions are correctly provisioned"

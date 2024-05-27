@@ -5,6 +5,14 @@ create_partioned_table() {
   local PREPROVISIONED=$4
 
   create_table_from_template ${TABLE}
+}
+
+create_daily_partioned_table() {
+  local TABLE=$1
+  local RETENTION=$2
+  local PREPROVISIONED=$3
+
+  create_table_from_template ${TABLE} "daily" ${RETENTION} ${PREPROVISIONED}
   generate_daily_partitions ${TABLE} ${RETENTION} ${PREPROVISIONED}
 }
 

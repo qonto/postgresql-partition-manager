@@ -25,7 +25,7 @@ setup() {
   local PREPROVISIONED=2
 
   # Create partioned table 2 retention days
-  create_partioned_table ${TABLE} ${INTERVAL} ${RETENTION} ${PREPROVISIONED}
+  create_daily_partioned_table ${TABLE} ${RETENTION} ${PREPROVISIONED}
 
   local CONFIGURATION=$(cat << EOF
 partitions:
@@ -54,7 +54,7 @@ EOF
   local NEW_RETENTION=2
   local PREPROVISIONED=1
 
-  create_partioned_table ${TABLE} ${TABLE} ${INTERVAL} ${INITIAL_RETENTION} ${PREPROVISIONED}
+  create_daily_partioned_table ${TABLE} ${TABLE} ${INITIAL_RETENTION} ${PREPROVISIONED}
 
   # Generate configuration with only 1 retention
   local CONFIGURATION=$(cat << EOF
@@ -84,7 +84,7 @@ EOF
   local INITIAL_PREPROVISIONED=2
   local NEW_PREPROVISIONED=3
 
-  create_partioned_table ${TABLE} ${INTERVAL} ${RETENTION} ${INITIAL_PREPROVISIONED}
+  create_daily_partioned_table ${TABLE} ${RETENTION} ${INITIAL_PREPROVISIONED}
 
   # Increase preProvisioned partitions
   local CONFIGURATION=$(cat << EOF

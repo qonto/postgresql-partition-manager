@@ -17,7 +17,7 @@ setup() {
   local INITIAL_PREPROVISIONED=3
 
   # Create partioned table
-  create_partioned_table ${TABLE} ${INTERVAL} ${INITIAL_RETENTION} ${INITIAL_PREPROVISIONED}
+  create_daily_partioned_table ${TABLE} ${INITIAL_RETENTION} ${INITIAL_PREPROVISIONED}
 
   for ((i=1; i<= INITIAL_RETENTION; i++));do
     assert_table_exists public $(generate_daily_partition_name ${TABLE} -${i})
