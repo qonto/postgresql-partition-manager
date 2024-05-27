@@ -45,6 +45,7 @@ func TestCheckPartitions(t *testing.T) {
 	partitions["daily partition without retention"] = partition.Configuration{Schema: "public", Table: "daily_table2", PartitionKey: "created_at", Interval: partition.Daily, Retention: 0, PreProvisioned: 1}
 	partitions["daily partition without preprovisioned"] = partition.Configuration{Schema: "public", Table: "daily_table3", PartitionKey: "column", Interval: partition.Daily, Retention: 4, PreProvisioned: 0}
 	partitions["weekly partition"] = partition.Configuration{Schema: "public", Table: "weekly_table", PartitionKey: "weekly", Interval: partition.Weekly, Retention: 2, PreProvisioned: 2}
+	partitions["quarterly partition"] = partition.Configuration{Schema: "public", Table: "quarterly_table", PartitionKey: "quarterly", Interval: partition.Quarterly, Retention: 2, PreProvisioned: 2}
 	partitions["monthly partition"] = partition.Configuration{Schema: "public", Table: "monthly_table", PartitionKey: "month", Interval: partition.Monthly, Retention: 2, PreProvisioned: 2}
 	partitions["yearly partition"] = partition.Configuration{Schema: "public", Table: "yearly_table", PartitionKey: "year", Interval: partition.Yearly, Retention: 4, PreProvisioned: 4}
 
@@ -60,6 +61,8 @@ func TestCheckPartitions(t *testing.T) {
 				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, -i))
 			case partition.Weekly:
 				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, -i*7))
+			case partition.Quarterly:
+				table, _ = p.GeneratePartition(time.Now().AddDate(0, i*-3, 0))
 			case partition.Monthly:
 				table, _ = p.GeneratePartition(time.Now().AddDate(0, -i, 0))
 			case partition.Yearly:
@@ -80,6 +83,8 @@ func TestCheckPartitions(t *testing.T) {
 				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, i*7))
 			case partition.Monthly:
 				table, _ = p.GeneratePartition(time.Now().AddDate(0, i, 0))
+			case partition.Quarterly:
+				table, _ = p.GeneratePartition(time.Now().AddDate(0, i*3, 0))
 			case partition.Yearly:
 				table, _ = p.GeneratePartition(time.Now().AddDate(i, 0, 0))
 			default:
