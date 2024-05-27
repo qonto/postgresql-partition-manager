@@ -13,7 +13,7 @@ HEALTHCHECK NONE
 RUN make build
 
 
-FROM alpine:3.19
+FROM alpine:3.20
 
 ARG USER=app
 ARG HOME=/app
