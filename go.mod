@@ -2,7 +2,7 @@ module github.com/qonto/postgresql-partition-manager
 
 go 1.21.3
 
-toolchain go1.21.9
+toolchain go1.22.4
 
 require (
 	github.com/go-playground/validator/v10 v10.20.0
