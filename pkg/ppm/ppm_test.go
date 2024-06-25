@@ -7,9 +7,7 @@ import (
 	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
 )
 
-func formatLowerBound(t *testing.T, p partition.Partition, config partition.Configuration) (output string) {
-	t.Helper()
-
+func getBoundFormat(config partition.Configuration) string {
 	var dateFormat string
 
 	switch config.Interval {
@@ -17,28 +15,25 @@ func formatLowerBound(t *testing.T, p partition.Partition, config partition.Conf
 		dateFormat = "2006-01-02"
 	case partition.Monthly:
 		dateFormat = "2006-01"
+	case partition.Quarterly:
+		dateFormat = "2006-01"
 	case partition.Yearly:
 		dateFormat = "2006"
 	}
 
-	return p.LowerBound.Format(dateFormat)
+	return dateFormat
+}
+
+func formatLowerBound(t *testing.T, p partition.Partition, config partition.Configuration) (output string) {
+	t.Helper()
+
+	return p.LowerBound.Format(getBoundFormat(config))
 }
 
 func formatUpperBound(t *testing.T, p partition.Partition, config partition.Configuration) (output string) {
 	t.Helper()
 
-	var dateFormat string
-
-	switch config.Interval {
-	case partition.Daily, partition.Weekly:
-		dateFormat = "2006-01-02"
-	case partition.Monthly:
-		dateFormat = "2006-01"
-	case partition.Yearly:
-		dateFormat = "2006"
-	}
-
-	return p.UpperBound.Format(dateFormat)
+	return p.UpperBound.Format(getBoundFormat(config))
 }
 
 func partitionResultToPartition(t *testing.T, partitions []partition.Partition, dateFormat string) (result []postgresql.PartitionResult) {

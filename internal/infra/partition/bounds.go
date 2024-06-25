@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	UUIDv7Version uuid.Version = 7
-	nbDaysInAWeek int          = 7
+	UUIDv7Version      uuid.Version = 7
+	nbDaysInAWeek      int          = 7
+	nbMonthsInAQuarter int          = 3
 )
 
 var (
@@ -38,6 +39,18 @@ func getWeeklyBounds(date time.Time) (lowerBound, upperBound time.Time) {
 func getMonthlyBounds(date time.Time) (lowerBound, upperBound time.Time) {
 	lowerBound = time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.UTC().Location())
 	upperBound = lowerBound.AddDate(0, 1, 0)
+
+	return
+}
+
+func getQuarterlyBounds(date time.Time) (lowerBound, upperBound time.Time) {
+	year, _, _ := date.Date()
+
+	quarter := (int(date.Month()) - 1) / nbMonthsInAQuarter
+	firstMonthOfTheQuarter := time.Month(quarter*nbMonthsInAQuarter + 1)
+
+	lowerBound = time.Date(year, firstMonthOfTheQuarter, 1, 0, 0, 0, 0, date.UTC().Location())
+	upperBound = lowerBound.AddDate(0, nbMonthsInAQuarter, 0)
 
 	return
 }

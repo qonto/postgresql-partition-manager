@@ -5,8 +5,9 @@ type (
 )
 
 const (
-	Daily   Interval = "daily"
-	Weekly  Interval = "weekly"
-	Monthly Interval = "monthly"
-	Yearly  Interval = "yearly"
+	Daily     Interval = "daily"
+	Weekly    Interval = "weekly"
+	Monthly   Interval = "monthly"
+	Quarterly Interval = "quarterly"
+	Yearly    Interval = "yearly"
 )
