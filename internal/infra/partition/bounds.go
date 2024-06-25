@@ -44,20 +44,10 @@ func getMonthlyBounds(date time.Time) (lowerBound, upperBound time.Time) {
 }
 
 func getQuarterlyBounds(date time.Time) (lowerBound, upperBound time.Time) {
-	year, month, _ := date.Date()
+	year, _, _ := date.Date()
 
-	var firstMonthOfTheQuarter time.Month
-
-	switch {
-	case month >= 1 && month <= 3:
-		firstMonthOfTheQuarter = time.January
-	case month >= 4 && month <= 6:
-		firstMonthOfTheQuarter = time.April
-	case month >= 7 && month <= 9:
-		firstMonthOfTheQuarter = time.July
-	case month >= 10 && month <= 12:
-		firstMonthOfTheQuarter = time.October
-	}
+	quarter := (int(date.Month()) - 1) / nbMonthsInAQuarter
+	firstMonthOfTheQuarter := time.Month(quarter*nbMonthsInAQuarter + 1)
 
 	lowerBound = time.Date(year, firstMonthOfTheQuarter, 1, 0, 0, 0, 0, date.UTC().Location())
 	upperBound = lowerBound.AddDate(0, nbMonthsInAQuarter, 0)
