@@ -39,6 +39,8 @@ func (p Postgres) GetColumnDataType(schema, table, column string) (ColumnType, e
 		return DateTime, nil
 	case "timestamp without time zone":
 		return DateTime, nil
+	case "timestamp with time zone":
+		return DateTime, nil
 	case "uuid":
 		return UUID, nil
 	default:
