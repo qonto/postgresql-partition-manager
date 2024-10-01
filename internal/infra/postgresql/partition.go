@@ -11,8 +11,8 @@ var (
 	// ErrUnsupportedPartitionStrategy represents an error indicating that the partitioning strategy on the table is not supported.
 	ErrUnsupportedPartitionStrategy = errors.New("unsupported partitioning strategy")
 
-	// ErrTableIsNotPartioned represents an error indicating the specified table don't have partitioning
-	ErrTableIsNotPartioned = errors.New("table is not partioned")
+	// ErrTableIsNotPartitioned represents an error indicating the specified table don't have partitioning
+	ErrTableIsNotPartitioned = errors.New("table is not partitioned")
 )
 
 type PartitionResult struct {
@@ -132,7 +132,7 @@ func (p Postgres) GetPartitionSettings(schema, table string) (strategy, key stri
 	}
 
 	if len(partkeydef) == 0 {
-		return "", "", ErrTableIsNotPartioned
+		return "", "", ErrTableIsNotPartitioned
 	}
 
 	strategy = partkeydef[0]

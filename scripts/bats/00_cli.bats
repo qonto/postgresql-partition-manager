@@ -14,5 +14,5 @@ setup() {
   run postgresql-partition-manager --help
 
   assert_success
-  assert_output --partial "Simplified PostgreSQL partioning management"
+  assert_output --partial "Simplified PostgreSQL partitioning management"
 }

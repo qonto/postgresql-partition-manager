@@ -33,7 +33,7 @@ func NewRootCommand() (*cobra.Command, error) {
 		Use:              "postgresql-partition-manager ",
 		Version:          fmt.Sprintf("%s, commit %s, built at %s", build.Version, build.CommitSHA, build.Date),
 		Short:            "PostgreSQL partition manager",
-		Long:             "Simplified PostgreSQL partioning management",
+		Long:             "Simplified PostgreSQL partitioning management",
 		TraverseChildren: true,
 	}
 

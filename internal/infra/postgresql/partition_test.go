@@ -108,7 +108,7 @@ func TestGetPartitionSettings(t *testing.T) {
 	mock.ExpectQuery(query).WillReturnRows(mock.NewRows([]string{"partkeydef"}).AddRow([]string{}))
 	_, _, err = p.GetPartitionSettings(schema, table)
 	assert.Error(t, err, "GetPartitionSettings should fail")
-	assert.ErrorIs(t, err, postgresql.ErrTableIsNotPartioned)
+	assert.ErrorIs(t, err, postgresql.ErrTableIsNotPartitioned)
 
 	mock.ExpectQuery(query).WillReturnError(ErrPostgreSQLConnectionFailure)
 	_, _, err = p.GetPartitionSettings(schema, table)
