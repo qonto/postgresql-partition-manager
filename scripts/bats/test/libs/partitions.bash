@@ -1,4 +1,4 @@
-create_partioned_table() {
+create_partitioned_table() {
   local TABLE=$1
   local INTERVAL=$2
   local RETENTION=$3
@@ -7,7 +7,7 @@ create_partioned_table() {
   create_table_from_template ${TABLE}
 }
 
-create_daily_partioned_table() {
+create_daily_partitioned_table() {
   local TABLE=$1
   local RETENTION=$2
   local PREPROVISIONED=$3
