@@ -14,7 +14,7 @@ func TestCreateTableLikeTable(t *testing.T) {
 	table := "my_table"
 	parentTable := "parent_table"
 
-	query := fmt.Sprintf(`CREATE TABLE %s.%s (LIKE %s.%s)`, schema, table, schema, parentTable)
+	query := fmt.Sprintf(`CREATE TABLE %s.%s (LIKE %s.%s INCLUDING ALL)`, schema, table, schema, parentTable)
 
 	mock, p := setupMock(t, pgxmock.QueryMatcherEqual)
 
