@@ -76,7 +76,17 @@ func (p *PPM) checkPartitionKey(config partition.Configuration) error {
 		return fmt.Errorf("failed to get partition settings: %w", err)
 	}
 
-	p.logger.Debug("Partition configuration found", "schema", config.Schema, "table", config.Table, "partition_key", config.PartitionKey, "partition_key_type", keyDataType, "partition_strategy", partitionStrategy)
+	p.logger.Debug("Partition configuration found",
+		"schema",
+		config.Schema,
+		"table",
+		config.Table,
+		"partition_key",
+		config.PartitionKey,
+		"partition_key_type",
+		keyDataType,
+		"partition_strategy",
+		partitionStrategy)
 
 	if partitionKey != config.PartitionKey {
 		p.logger.Warn("Partition key mismatch", "expected", config.PartitionKey, "current", partitionKey)
@@ -123,13 +133,29 @@ func (p *PPM) comparePartitions(existingTables, expectedTables []partition.Parti
 			if existing[t.Name].UpperBound != t.UpperBound {
 				incorrectBound = true
 
-				p.logger.Warn("Incorrect upper partition bound", "schema", t.Schema, "table", t.Name, "current_bound", existing[t.Name].UpperBound, "expected_bound", t.UpperBound)
+				p.logger.Warn("Incorrect upper partition bound",
+					"schema",
+					t.Schema,
+					"table",
+					t.Name,
+					"current_bound",
+					existing[t.Name].UpperBound,
+					"expected_bound",
+					t.UpperBound)
 			}
 
 			if existing[t.Name].LowerBound != t.LowerBound {
 				incorrectBound = true
 
-				p.logger.Warn("Incorrect lower partition bound", "schema", t.Schema, "table", t.Name, "current_bound", existing[t.Name].LowerBound, "expected_bound", t.LowerBound)
+				p.logger.Warn("Incorrect lower partition bound",
+					"schema",
+					t.Schema,
+					"table",
+					t.Name,
+					"current_bound",
+					existing[t.Name].LowerBound,
+					"expected_bound",
+					t.LowerBound)
 			}
 
 			if incorrectBound {
@@ -198,9 +224,18 @@ func (p *PPM) checkPartitionsConfiguration(config partition.Configuration) error
 	}
 
 	if len(missing) > 0 {
-		partitionContainAnError = true
+		for _, m := range missing {
+			// a missing outdated partition should not necessarily be reported as an error.
+			// it is a valid case when the configuration requires past partitions not to be provisioned.
+			isRetentionPartition := m.UpperBound.Before(time.Now())
+			if isRetentionPartition && config.ProvisionRetentionPartitions {
+				partitionContainAnError = true
+			}
+		}
 
-		p.logger.Warn("Found missing tables", "tables", missing)
+		if partitionContainAnError {
+			p.logger.Warn("Found missing tables", "tables", missing)
+		}
 	}
 
 	if len(incorrectBound) > 0 {
