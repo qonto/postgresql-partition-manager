@@ -12,13 +12,14 @@ import (
 )
 
 var OneDayPartitionConfiguration = partition.Configuration{
-	Schema:         "public",
-	Table:          "my_table",
-	PartitionKey:   "created_at",
-	Interval:       "daily",
-	Retention:      1,
-	PreProvisioned: 1,
-	CleanupPolicy:  "drop",
+	Schema:                       "public",
+	Table:                        "my_table",
+	PartitionKey:                 "created_at",
+	Interval:                     "daily",
+	Retention:                    1,
+	PreProvisioned:               1,
+	CleanupPolicy:                "drop",
+	ProvisionRetentionPartitions: true,
 }
 
 var ErrFake = errors.New("fake error")

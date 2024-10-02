@@ -13,7 +13,7 @@ PPM will process all referenced partitions and exit with a non-zero code if it d
 
 **Features**:
 
-- Creation of upcoming partitions
+- Creation of upcoming partitions (as well as outdated partitions if requested)
 - Delete (or detach) outdated partitions
 - Check partitions configuration
 
@@ -215,7 +215,7 @@ The primary commands include:
 
 - `validate`: Validates the partition configuration file
 - `run check`: Checks if partitions match the expected configuration. This is useful for detecting incorrect partitions
-- `run provisioning`: Creates future partitions
+- `run provisioning`: Creates future partitions (as well as outdated partitions if `provisionRetentionPartitions` is true)
 - `run cleanup`: Removes (or detach) outdated partitions
 - `run all`: Execute provisioning, cleanup, and check commands sequentially
 
@@ -239,15 +239,16 @@ Configuration could be defined in `postgresql-partition-manager.yaml` or environ
 
 Partition object:
 
-| Parameter      | Description                                          | Default |
-| -------------- | ---------------------------------------------------- | ------- |
-| column         | Column used for partitioning                         |         |
-| interval       | Partitioning interval (`daily`, `weekly`, `monthly`, `quarterly` or `yearly`) |         |
-| preProvisioned | Number of partitions to create in advance            |         |
-| retention      | Number of partitions to retain                       |         |
-| schema         | PostgreSQL schema                                    |         |
-| table          | Table to be partitioned                              |         |
-| cleanupPolicy  | `detach` refers to detaching only the partition while `drop` refers to both detaching and dropping it |         |
+| Parameter                    | Description                                                                                           | Default |
+|------------------------------|-------------------------------------------------------------------------------------------------------|---------|
+| column                       | Column used for partitioning                                                                          |         |
+| interval                     | Partitioning interval (`daily`, `weekly`, `monthly`, `quarterly` or `yearly`)                         |         |
+| preProvisioned               | Number of partitions to create in advance                                                             |         |
+| retention                    | Number of partitions to retain                                                                        |         |
+| schema                       | PostgreSQL schema                                                                                     |         |
+| table                        | Table to be partitioned                                                                               |         |
+| cleanupPolicy                | `detach` refers to detaching only the partition while `drop` refers to both detaching and dropping it |         |
+| provisionRetentionPartitions | forces the creation of outdated partitions compatible with the retention period                       | false   |
 
 See the [full configuration file](configs/postgresql-partition-manager/postgresql-partition-manager.yaml).
 

@@ -43,6 +43,11 @@ func (p PPM) provisionPartitionsFor(config partition.Configuration, at time.Time
 	}
 
 	for _, partition := range partitions {
+		isRetentionPartition := partition.UpperBound.Before(time.Now())
+		if isRetentionPartition && !config.ProvisionRetentionPartitions {
+			continue
+		}
+
 		if err := p.CreatePartition(config, partition); err != nil {
 			provisioningFailed = true
 

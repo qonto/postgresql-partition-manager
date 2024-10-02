@@ -31,3 +31,4 @@
 #     retention: 30
 #     preProvisioned: 7
 #     cleanupPolicy: drop
+#     provisionRetentionPartitions: false

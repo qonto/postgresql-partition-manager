@@ -21,6 +21,9 @@ func TestProvisioning(t *testing.T) {
 	TwoDayPartitionConfiguration.Retention = 2
 	TwoDayPartitionConfiguration.PreProvisioned = 2
 
+	ConfigurationWithoutProvisioningRetention := OneDayPartitionConfiguration
+	ConfigurationWithoutProvisioningRetention.ProvisionRetentionPartitions = false
+
 	testCases := []struct {
 		name                      string
 		partitions                map[string]partition.Configuration
@@ -33,6 +36,16 @@ func TestProvisioning(t *testing.T) {
 			},
 			[]partition.Partition{
 				yesterdayPartition,
+				currentPartition,
+				tomorrowPartition,
+			},
+		},
+		{
+			"Provisioning create preProvisioned without retention partitions",
+			map[string]partition.Configuration{
+				"unittest": ConfigurationWithoutProvisioningRetention,
+			},
+			[]partition.Partition{
 				currentPartition,
 				tomorrowPartition,
 			},
