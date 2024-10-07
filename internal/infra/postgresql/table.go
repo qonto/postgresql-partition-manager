@@ -3,7 +3,7 @@ package postgresql
 import "fmt"
 
 func (p Postgres) CreateTableLikeTable(schema, table, parent string) error {
-	query := fmt.Sprintf("CREATE TABLE %s.%s (LIKE %s.%s)", schema, table, schema, parent)
+	query := fmt.Sprintf("CREATE TABLE %s.%s (LIKE %s.%s INCLUDING ALL)", schema, table, schema, parent)
 	p.logger.Debug("Create table", "query", schema, "table", table, "query", query)
 
 	_, err := p.conn.Exec(p.ctx, query)
