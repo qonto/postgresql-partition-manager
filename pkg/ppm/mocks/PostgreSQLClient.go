@@ -266,7 +266,8 @@ func (_m *PostgreSQLClient) ListPartitions(schema string, table string) ([]postg
 func NewPostgreSQLClient(t interface {
 	mock.TestingT
 	Cleanup(func())
-}) *PostgreSQLClient {
+},
+) *PostgreSQLClient {
 	mock := &PostgreSQLClient{}
 	mock.Mock.Test(t)
 
