@@ -30,7 +30,7 @@ PPM will process all referenced partitions and exit with a non-zero code if it d
   | ------------------ | ----------------------------------------- | ----------------- |
   | daily              | `<parent_table>_<YYYY>_<DD>_<MM>`         | `logs_2024_06_25` |
   | weekly             | `<parent_table>_w<week number>`           | `logs_2024_w26`   |
-  | quarterly          | `<parent_table>_<YYYY>_q<quarter number>` | `logs_2024_q1`   |
+  | quarterly          | `<parent_table>_<YYYY>_q<quarter number>` | `logs_2024_q1`    |
   | monthly            | `<parent_table>_<YYYY>_<MM>`              | `logs_2024_06`    |
   | yearly             | `<parent_table>_<YYYY>`                   | `logs_2024`       |
 
@@ -239,14 +239,14 @@ Configuration could be defined in `postgresql-partition-manager.yaml` or environ
 
 Partition object:
 
-| Parameter      | Description                                          | Default |
-| -------------- | ---------------------------------------------------- | ------- |
-| column         | Column used for partitioning                         |         |
-| interval       | Partitioning interval (`daily`, `weekly`, `monthly`, `quarterly` or `yearly`) |         |
-| preProvisioned | Number of partitions to create in advance            |         |
-| retention      | Number of partitions to retain                       |         |
-| schema         | PostgreSQL schema                                    |         |
-| table          | Table to be partitioned                              |         |
+| Parameter      | Description                                                                                           | Default |
+| -------------- | ----------------------------------------------------------------------------------------------------- | ------- |
+| partitionKey   | Column used for partitioning                                                                          |         |
+| interval       | Partitioning interval (`daily`, `weekly`, `monthly`, `quarterly` or `yearly`)                         |         |
+| preProvisioned | Number of partitions to create in advance                                                             |         |
+| retention      | Number of partitions to retain                                                                        |         |
+| schema         | PostgreSQL schema                                                                                     |         |
+| table          | Table to be partitioned                                                                               |         |
 | cleanupPolicy  | `detach` refers to detaching only the partition while `drop` refers to both detaching and dropping it |         |
 
 See the [full configuration file](configs/postgresql-partition-manager/postgresql-partition-manager.yaml).
