@@ -38,6 +38,17 @@ func TestParseBounds(t *testing.T) {
 			"2025-02-03T12:53:00Z",
 		},
 		{
+			"Datetime with timezone bounds",
+			postgresql.PartitionResult{
+				Schema:     "public",
+				Name:       "my_table",
+				LowerBound: "2024-01-01 10:00:00+00",
+				UpperBound: "2025-02-03 12:53:00+00",
+			},
+			"2024-01-01T10:00:00Z",
+			"2025-02-03T12:53:00Z",
+		},
+		{
 			"UUIDv7 bounds",
 			postgresql.PartitionResult{
 				Schema:     "public",
