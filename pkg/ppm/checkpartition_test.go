@@ -52,48 +52,49 @@ func TestCheckPartitions(t *testing.T) {
 	// Build mock for each partitions
 	for _, p := range partitions {
 		var tables []partition.Partition
+		var retentionTables []partition.Partition
+		var preprovisionedTables []partition.Partition
 
-		var table partition.Partition
-
-		for i := 0; i <= p.Retention; i++ {
-			switch p.Interval {
-			case partition.Daily:
-				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, -i))
-			case partition.Weekly:
-				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, -i*7))
-			case partition.Quarterly:
-				table, _ = p.GeneratePartition(time.Now().AddDate(0, i*-3, 0))
-			case partition.Monthly:
-				table, _ = p.GeneratePartition(time.Now().AddDate(0, -i, 0))
-			case partition.Yearly:
-				table, _ = p.GeneratePartition(time.Now().AddDate(-i, 0, 0))
-			default:
-				t.Errorf("unuspported partition interval in retention table mock")
-			}
-
-			postgreSQLMock.On("GetColumnDataType", table.Schema, table.ParentTable, p.PartitionKey).Return(postgresql.Date, nil).Once()
-			tables = append(tables, table)
+		// Create retention partitions
+		forDate := time.Now()
+		switch p.Interval {
+		case partition.Daily:
+			retentionTables, _ = p.GetRetentionPartitions(forDate)
+		case partition.Weekly:
+			retentionTables, _ = p.GetRetentionPartitions(forDate)
+		case partition.Quarterly:
+			retentionTables, _ = p.GetRetentionPartitions(forDate)
+		case partition.Monthly:
+			retentionTables, _ = p.GetRetentionPartitions(forDate)
+		case partition.Yearly:
+			retentionTables, _ = p.GetRetentionPartitions(forDate)
+		default:
+			t.Errorf("unuspported partition interval in retention table mock")
 		}
+		tables = append(tables, retentionTables...)
 
-		for i := 0; i <= p.PreProvisioned; i++ {
-			switch p.Interval {
-			case partition.Daily:
-				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, i))
-			case partition.Weekly:
-				table, _ = p.GeneratePartition(time.Now().AddDate(0, 0, i*7))
-			case partition.Monthly:
-				table, _ = p.GeneratePartition(time.Now().AddDate(0, i, 0))
-			case partition.Quarterly:
-				table, _ = p.GeneratePartition(time.Now().AddDate(0, i*3, 0))
-			case partition.Yearly:
-				table, _ = p.GeneratePartition(time.Now().AddDate(i, 0, 0))
-			default:
-				t.Errorf("unuspported partition interval in preprovisonned table mock")
-			}
+		// Create current partition
+		currentPartition, _ := p.GeneratePartition(forDate)
+		tables = append(tables, currentPartition)
 
-			postgreSQLMock.On("GetColumnDataType", table.Schema, table.ParentTable, p.PartitionKey).Return(postgresql.Date, nil).Once()
-			tables = append(tables, table)
+		// Create preprovisioned partitions
+		switch p.Interval {
+		case partition.Daily:
+			preprovisionedTables, _ = p.GetPreProvisionedPartitions(forDate)
+		case partition.Weekly:
+			preprovisionedTables, _ = p.GetPreProvisionedPartitions(forDate)
+		case partition.Monthly:
+			preprovisionedTables, _ = p.GetPreProvisionedPartitions(forDate)
+		case partition.Quarterly:
+			preprovisionedTables, _ = p.GetPreProvisionedPartitions(forDate)
+		case partition.Yearly:
+			preprovisionedTables, _ = p.GetPreProvisionedPartitions(forDate)
+		default:
+			t.Errorf("unuspported partition interval in preprovisonned table mock")
 		}
+		tables = append(tables, preprovisionedTables...)
+
+		postgreSQLMock.On("GetColumnDataType", p.Schema, p.Table, p.PartitionKey).Return(postgresql.Date, nil).Once()
 
 		postgreSQLMock.On("GetPartitionSettings", p.Schema, p.Table).Return(string(partition.Range), p.PartitionKey, nil).Once()
 
