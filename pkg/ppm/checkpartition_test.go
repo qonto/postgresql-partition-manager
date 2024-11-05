@@ -51,12 +51,15 @@ func TestCheckPartitions(t *testing.T) {
 
 	// Build mock for each partitions
 	for _, p := range partitions {
-		var tables []partition.Partition
-		var retentionTables []partition.Partition
-		var preprovisionedTables []partition.Partition
+		var (
+			tables               []partition.Partition
+			retentionTables      []partition.Partition
+			preprovisionedTables []partition.Partition
+		)
 
 		// Create retention partitions
 		forDate := time.Now()
+
 		switch p.Interval {
 		case partition.Daily:
 			retentionTables, _ = p.GetRetentionPartitions(forDate)
@@ -71,6 +74,7 @@ func TestCheckPartitions(t *testing.T) {
 		default:
 			t.Errorf("unuspported partition interval in retention table mock")
 		}
+
 		tables = append(tables, retentionTables...)
 
 		// Create current partition
@@ -92,6 +96,7 @@ func TestCheckPartitions(t *testing.T) {
 		default:
 			t.Errorf("unuspported partition interval in preprovisonned table mock")
 		}
+
 		tables = append(tables, preprovisionedTables...)
 
 		postgreSQLMock.On("GetColumnDataType", p.Schema, p.Table, p.PartitionKey).Return(postgresql.Date, nil).Once()
