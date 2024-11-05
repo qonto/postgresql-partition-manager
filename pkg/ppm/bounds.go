@@ -118,5 +118,6 @@ func convertToDateTimeWithoutTimezone(bound time.Time) time.Time {
 	if err != nil {
 		return time.Time{}
 	}
+
 	return parsedTime
 }
