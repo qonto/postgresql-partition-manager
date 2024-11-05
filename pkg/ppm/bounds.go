@@ -30,6 +30,11 @@ func parseBounds(partition postgresql.PartitionResult) (lowerBound time.Time, up
 		return lowerBound, upperBound, nil
 	}
 
+	lowerBound, upperBound, err = parseBoundAsDateTimeWithTimezone(partition)
+	if err == nil {
+		return lowerBound, upperBound, nil
+	}
+
 	lowerBound, upperBound, err = parseBoundAsUUIDv7(partition)
 	if err == nil {
 		return lowerBound, upperBound, nil
@@ -70,6 +75,23 @@ func parseBoundAsDateTime(partition postgresql.PartitionResult) (lowerBound, upp
 	return lowerBound, upperBound, nil
 }
 
+func parseBoundAsDateTimeWithTimezone(partition postgresql.PartitionResult) (lowerBound, upperBound time.Time, err error) {
+	lowerBound, err = time.Parse("2006-01-02 15:04:05Z07", partition.LowerBound)
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("can't parse lowerbound as datetime with timezone: %w", err)
+	}
+
+	upperBound, err = time.Parse("2006-01-02 15:04:05Z07", partition.UpperBound)
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("can't parse upperbound as datetime with timezone: %w", err)
+	}
+
+	lowerBound = convertToDateTimeWithoutTimezone(lowerBound)
+	upperBound = convertToDateTimeWithoutTimezone(upperBound)
+
+	return lowerBound, upperBound, nil
+}
+
 func parseBoundAsUUIDv7(partition postgresql.PartitionResult) (lowerBound, upperBound time.Time, err error) {
 	lowerBoundUUID, err := uuid.Parse(partition.LowerBound)
 	if err != nil {
@@ -89,4 +111,12 @@ func parseBoundAsUUIDv7(partition postgresql.PartitionResult) (lowerBound, upper
 	lowerBound = time.Unix(lowerBoundUUID.Time().UnixTime()).UTC()
 
 	return lowerBound, upperBound, nil
+}
+
+func convertToDateTimeWithoutTimezone(bound time.Time) time.Time {
+	parsedTime, err := time.Parse("2006-01-02 15:04:05", bound.UTC().Format("2006-01-02 15:04:05"))
+	if err != nil {
+		return time.Time{}
+	}
+	return parsedTime
 }

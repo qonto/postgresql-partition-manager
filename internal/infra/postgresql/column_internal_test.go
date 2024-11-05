@@ -50,7 +50,7 @@ func TestGetColumn(t *testing.T) {
 		{
 			"Date time with time zone",
 			"timestamp with time zone",
-			DateTime,
+			DateTimeWithTZ,
 		},
 		{
 			"UUID",

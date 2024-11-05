@@ -11,9 +11,10 @@ var ErrUnsupportedPartitionKeyType = errors.New("unsupported partition key colum
 type ColumnType string
 
 const (
-	Date     ColumnType = "date"
-	DateTime ColumnType = "timestamp"
-	UUID     ColumnType = "uuid"
+	Date           ColumnType = "date"
+	DateTime       ColumnType = "timestamp"
+	DateTimeWithTZ ColumnType = "timestamp with time zone"
+	UUID           ColumnType = "uuid"
 )
 
 func (p Postgres) GetColumnDataType(schema, table, column string) (ColumnType, error) {
@@ -40,7 +41,7 @@ func (p Postgres) GetColumnDataType(schema, table, column string) (ColumnType, e
 	case "timestamp without time zone":
 		return DateTime, nil
 	case "timestamp with time zone":
-		return DateTime, nil
+		return DateTimeWithTZ, nil
 	case "uuid":
 		return UUID, nil
 	default:
