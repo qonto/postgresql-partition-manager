@@ -114,7 +114,7 @@ func parseBoundAsUUIDv7(partition postgresql.PartitionResult) (lowerBound, upper
 }
 
 func convertToDateTimeWithoutTimezone(bound time.Time) time.Time {
-	parsedTime, err := time.Parse("2006-01-02 15:04:05", bound.Format("2006-01-02 15:04:05"))
+	parsedTime, err := time.Parse("2006-01-02 15:04:05", bound.UTC().Format("2006-01-02 15:04:05"))
 	if err != nil {
 		return time.Time{}
 	}

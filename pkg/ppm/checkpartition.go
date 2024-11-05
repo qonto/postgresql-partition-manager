@@ -21,6 +21,7 @@ var (
 var SupportedPartitionKeyDataType = []postgresql.ColumnType{
 	postgresql.Date,
 	postgresql.DateTime,
+	postgresql.DateTimeWithTZ,
 	postgresql.UUID,
 }
 

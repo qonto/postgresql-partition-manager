@@ -103,7 +103,7 @@ func (p PPM) CreatePartition(partitionConfiguration partition.Configuration, par
 	case postgresql.Date:
 		lowerBound = partition.LowerBound.Format("2006-01-02")
 		upperBound = partition.UpperBound.Format("2006-01-02")
-	case postgresql.DateTime:
+	case postgresql.DateTime, postgresql.DateTimeWithTZ:
 		lowerBound = partition.LowerBound.Format("2006-01-02 00:00:00")
 		upperBound = partition.UpperBound.Format("2006-01-02 00:00:00")
 	case postgresql.UUID:
