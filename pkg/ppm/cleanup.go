@@ -28,7 +28,7 @@ func (p PPM) CleanupPartitions() error {
 			return fmt.Errorf("could not list partitions: %w", err)
 		}
 
-		unexpected, _, _ := p.comparePartitions(foundPartitions, expectedPartitions)
+		unexpected, _, _ := p.comparePartitions(foundPartitions, expectedPartitions, config.ManuallyManagedPartitions)
 
 		for _, partition := range unexpected {
 			err := p.DetachPartition(partition)

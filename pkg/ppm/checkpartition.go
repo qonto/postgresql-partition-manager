@@ -108,7 +108,10 @@ func IsSupportedKeyDataType(dataType postgresql.ColumnType) bool {
 	return slices.Contains(SupportedPartitionKeyDataType, dataType)
 }
 
-func (p *PPM) comparePartitions(existingTables, expectedTables []partition.Partition) (unexpectedTables, missingTables, incorrectBounds []partition.Partition) {
+func (p *PPM) comparePartitions(existingTables,
+	expectedTables []partition.Partition,
+	manuallyManagedPartitionNames []string,
+) (unexpectedTables, missingTables, incorrectBounds []partition.Partition) {
 	existing := make(map[string]partition.Partition)
 	expectedAndExists := make(map[string]bool)
 
@@ -143,8 +146,18 @@ func (p *PPM) comparePartitions(existingTables, expectedTables []partition.Parti
 
 	for _, t := range existingTables {
 		if _, found := expectedAndExists[t.Name]; !found {
-			// Only in existingTables and not in both
-			unexpectedTables = append(unexpectedTables, t)
+			isPartitionManuallyManaged := false
+
+			for _, manuallyManagedPartition := range manuallyManagedPartitionNames {
+				if manuallyManagedPartition == t.Name {
+					isPartitionManuallyManaged = true
+				}
+			}
+
+			if !isPartitionManuallyManaged {
+				// Only in existingTables and not in both
+				unexpectedTables = append(unexpectedTables, t)
+			}
 		}
 	}
 
@@ -190,7 +203,9 @@ func (p *PPM) checkPartitionsConfiguration(config partition.Configuration) error
 		return fmt.Errorf("could not list partitions: %w", err)
 	}
 
-	unexpected, missing, incorrectBound := p.comparePartitions(foundPartitions, expectedPartitions)
+	unexpected, missing, incorrectBound := p.comparePartitions(foundPartitions,
+		expectedPartitions,
+		config.ManuallyManagedPartitions)
 
 	if len(unexpected) > 0 {
 		partitionContainAnError = true

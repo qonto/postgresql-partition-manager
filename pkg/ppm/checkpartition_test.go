@@ -209,3 +209,83 @@ func TestUnsupportedPartitionsStrategy(t *testing.T) {
 		})
 	}
 }
+
+func TestPPM_comparePartitions(t *testing.T) {
+	p := partition.Partition{
+		ParentTable: "ParentTable",
+		Schema:      "Schema",
+		Name:        "Name",
+	}
+
+	type result struct {
+		unexpectedTables []partition.Partition
+		missingTables    []partition.Partition
+		incorrectBounds  []partition.Partition
+	}
+
+	tests := []struct {
+		name                          string
+		existingTables                []partition.Partition
+		expectedTables                []partition.Partition
+		manuallyManagedPartitionNames []string
+		result                        result
+	}{
+		{
+			name: "all existing is expected",
+			existingTables: []partition.Partition{
+				p,
+			},
+			expectedTables: []partition.Partition{
+				p,
+			},
+			result: result{},
+		},
+		{
+			name: "manually managed partition",
+			existingTables: []partition.Partition{
+				p,
+			},
+			manuallyManagedPartitionNames: []string{"Name"},
+			result:                        result{},
+		},
+		{
+			name: "missing table",
+			expectedTables: []partition.Partition{
+				p,
+			},
+			result: result{
+				missingTables: []partition.Partition{
+					p,
+				},
+			},
+		},
+		{
+			name: "unexpected table",
+			existingTables: []partition.Partition{
+				p,
+			},
+			result: result{
+				unexpectedTables: []partition.Partition{
+					p,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := ppm.PPM{}
+			gotUnexpectedTables, gotMissingTables, gotIncorrectBounds := ppm.ComparePartitions(&p, tt.existingTables,
+				tt.expectedTables,
+				tt.manuallyManagedPartitionNames)
+			assert.DeepEqual(t,
+				tt.result.unexpectedTables,
+				gotUnexpectedTables)
+			assert.DeepEqual(t,
+				tt.result.missingTables,
+				gotMissingTables)
+			assert.DeepEqual(t,
+				tt.result.incorrectBounds,
+				gotIncorrectBounds)
+		})
+	}
+}
