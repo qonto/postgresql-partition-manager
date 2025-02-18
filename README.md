@@ -7,7 +7,7 @@ PPM operates on [PostgreSQL's Declarative partitioning](https://www.postgresql.o
 > [!TIP]
 > The key objective of PPM is to simplify the use of PostgreSQL partitions for developers. By providing a secure, non-blocking, and intuitive tool for partition management
 >
-> Developers can manage table schema and indexes using existing tools and ORMs, and leverate on PPM to implement `date` and [`UUIDv7`](https://datatracker.ietf.org/doc/html/draft-ietf-uuidrev-rfc4122bis#name-uuid-version-7) column based partitioning for scaling PostgreSQL systems.
+> Developers can manage table schema and indexes using existing tools and ORMs, and leverate on PPM to implement `date` and [`UUIDv7`](https://www.rfc-editor.org/rfc/rfc9562.html#name-uuid-version-7) column based partitioning for scaling PostgreSQL systems.
 
 PPM will process all referenced partitions and exit with a non-zero code if it detects an anomaly in at least one partition. This process must be closely monitored to trigger manual intervention, if necessary, to avoid system downtime.
 
