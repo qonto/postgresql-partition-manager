@@ -30,7 +30,12 @@ func getDailyBounds(date time.Time) (lowerBound, upperBound time.Time) {
 }
 
 func getWeeklyBounds(date time.Time) (lowerBound, upperBound time.Time) {
-	lowerBound = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.UTC().Location()).AddDate(0, 0, -int(date.Weekday()-time.Monday))
+	offset := int(date.Weekday() - time.Monday)
+	if offset < 0 {
+		offset = 6 // adjust Sunday to be 6 days after Monday instead of 1 day before
+	}
+
+	lowerBound = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.UTC().Location()).AddDate(0, 0, -1*offset)
 	upperBound = lowerBound.AddDate(0, 0, nbDaysInAWeek)
 
 	return
