@@ -35,23 +35,68 @@ func (p PPM) ProvisioningPartitions() error {
 }
 
 func (p PPM) provisionPartitionsFor(config partition.Configuration, at time.Time) error {
-	provisioningFailed := false
+	foundPartitions, err := p.ListPartitions(config.Schema, config.Table)
+	if err != nil {
+		return fmt.Errorf("could not list partitions: %w", err)
+	}
 
 	partitions, err := getExpectedPartitions(config, at)
 	if err != nil {
 		return fmt.Errorf("could not generate partition to create: %w", err)
 	}
 
-	for _, partition := range partitions {
-		if err := p.CreatePartition(config, partition); err != nil {
-			provisioningFailed = true
-
-			p.logger.Error("Failed to create partition", "error", err, "schema", partition.Schema, "table", partition.Name)
-		}
+	currentRange, err := p.getGlobalRange(foundPartitions)
+	if err != nil {
+		return fmt.Errorf("could not evaluate existing ranges: %w", err)
 	}
 
-	if provisioningFailed {
-		return ErrPartitionProvisioningFailed
+	p.logger.Info("Current ", "c_range", currentRange.String())
+
+	expectedRange, err := p.getGlobalRange(partitions)
+	if err != nil {
+		return fmt.Errorf("could not evaluate ranges to create: %w", err)
+	}
+
+	p.logger.Info("Expected", "e_range", expectedRange)
+
+	if expectedRange.IsEqual(currentRange) {
+		// If expected and current ranges are the same, there is no partition to create
+		return nil
+	}
+
+	for _, candidate := range partitions {
+		p.logger.Info("Candidate", "range", partition.Bounds(candidate.LowerBound, candidate.UpperBound))
+
+		if !candidate.UpperBound.After(currentRange.LowerBound) || !candidate.LowerBound.Before(currentRange.UpperBound) {
+			// no intersection between candidate and existing: create new partition
+			p.logger.Info("No intersection", "create-range", partition.Bounds(candidate.LowerBound, candidate.UpperBound))
+
+			err = p.CreatePartition(config, candidate)
+		}
+
+		if err == nil && candidate.LowerBound.Before(currentRange.LowerBound) && candidate.UpperBound.After(currentRange.LowerBound) {
+			// left segment of the candidate outside, of the intersection with existing partitions
+			segLeft := candidate
+			segLeft.UpperBound = currentRange.LowerBound
+			segLeft.Name = fmt.Sprintf("%s_%s_%s", config.Table, segLeft.LowerBound.Format("20060102"), segLeft.UpperBound.Format("20060102"))
+			p.logger.Info("Left intersection", "create-range", partition.Bounds(segLeft.LowerBound, segLeft.UpperBound))
+			err = p.CreatePartition(config, segLeft)
+		}
+
+		if err == nil && candidate.UpperBound.After(currentRange.UpperBound) && candidate.LowerBound.Before(currentRange.UpperBound) {
+			// right segment of the candidate, outside of the intersection with existing partitions
+			segRight := candidate
+			segRight.LowerBound = currentRange.UpperBound
+			segRight.Name = fmt.Sprintf("%s_%s_%s", config.Table, segRight.LowerBound.Format("20060102"), segRight.UpperBound.Format("20060102"))
+			p.logger.Info("Right intersection", "create-range", partition.Bounds(segRight.LowerBound, segRight.UpperBound))
+			err = p.CreatePartition(config, segRight)
+		}
+
+		if err != nil {
+			p.logger.Error("Failed to create partition", "error", err)
+
+			return ErrPartitionProvisioningFailed
+		}
 	}
 
 	return nil
