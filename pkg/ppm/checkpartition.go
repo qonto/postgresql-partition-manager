@@ -181,9 +181,7 @@ func (p *PPM) ListPartitions(schema, table string) (partitions []partition.Parti
 func (p *PPM) checkPartitionsConfiguration(config partition.Configuration) error {
 	partitionContainAnError := false
 
-	currentTime := time.Now()
-
-	expectedPartitions, err := getExpectedPartitions(config, currentTime)
+	expectedPartitions, err := getExpectedPartitions(config, p.workDate)
 	if err != nil {
 		return fmt.Errorf("could not generate expected partitions: %w", err)
 	}

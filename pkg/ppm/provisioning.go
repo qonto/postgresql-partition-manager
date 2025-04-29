@@ -14,13 +14,12 @@ import (
 var ErrPartitionProvisioningFailed = errors.New("partition provisioning failed for one or more partition")
 
 func (p PPM) ProvisioningPartitions() error {
-	currentTime := time.Now()
 	provisioningFailed := false
 
 	for name, config := range p.partitions {
 		p.logger.Info("Provisioning partition", "partition", name)
 
-		if err := p.provisionPartitionsFor(config, currentTime); err != nil {
+		if err := p.provisionPartitionsFor(config, p.workDate); err != nil {
 			provisioningFailed = true
 		}
 	}

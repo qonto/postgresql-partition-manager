@@ -3,6 +3,7 @@ package ppm_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
@@ -68,7 +69,7 @@ func TestProvisioning(t *testing.T) {
 				}
 			}
 
-			provisionner := ppm.New(context.TODO(), *logger, postgreSQLMock, tc.partitions)
+			provisionner := ppm.New(context.TODO(), *logger, postgreSQLMock, tc.partitions, time.Now())
 			err := provisionner.ProvisioningPartitions()
 
 			assert.Nil(t, err, "ProvisioningPartitions should succeed")
@@ -129,7 +130,7 @@ func TestProvisioningFailover(t *testing.T) {
 		configuration[tc.name] = tc.config
 	}
 
-	provisionner := ppm.New(context.TODO(), *logger, postgreSQLMock, configuration)
+	provisionner := ppm.New(context.TODO(), *logger, postgreSQLMock, configuration, time.Now())
 	err := provisionner.ProvisioningPartitions()
 
 	assert.NotNil(t, err, "ProvisioningPartitions should report an error")

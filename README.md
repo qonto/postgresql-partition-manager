@@ -251,6 +251,9 @@ Partition object:
 
 See the [full configuration file](configs/postgresql-partition-manager/postgresql-partition-manager.yaml).
 
+## Work date
+By default, the provisioning and cleanup evaluate what to do at the current date. For testing purposes, a different date can be set through the environment variable `PPM_WORK_DATE` (format: `YYYY-MM-DD`).
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.

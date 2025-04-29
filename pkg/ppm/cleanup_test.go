@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
@@ -87,7 +88,7 @@ func TestCleanupPartitions(t *testing.T) {
 				}
 			}
 
-			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, tc.partitions)
+			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, tc.partitions, time.Now())
 			err := checker.CleanupPartitions()
 
 			assert.Nil(t, err, "CleanupPartitions should succeed")
@@ -161,7 +162,7 @@ func TestCleanupPartitionsFailover(t *testing.T) {
 	postgreSQLMock.On("DetachPartitionConcurrently", successPartition.Schema, successPartition.Name, successPartition.ParentTable).Return(nil).Once()
 	postgreSQLMock.On("DropTable", successPartition.Schema, successPartition.Name).Return(nil).Once()
 
-	checker := ppm.New(context.TODO(), *logger, postgreSQLMock, configuration)
+	checker := ppm.New(context.TODO(), *logger, postgreSQLMock, configuration, time.Now())
 	err := checker.CleanupPartitions()
 
 	assert.NotNil(t, err, "CleanupPartitions should report an error")
