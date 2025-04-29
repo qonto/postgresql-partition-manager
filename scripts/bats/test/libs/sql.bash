@@ -20,6 +20,44 @@ execute_sql_file() {
   fi
 }
 
+# Execute multiple semicolon-separated commands
+execute_sql_commands() {
+  local SQL_COMMANDS=$1
+  local DATABASE=$2
+
+  PGDATABASE="$DATABASE" psql --tuples-only --no-align --quiet <<EOSQL
+$SQL_COMMANDS
+;
+EOSQL
+}
+
+list_existing_partitions() {
+  local DATABASE=$1
+  local PARENT_SCHEMA=$2
+  local PARENT_TABLE=$3
+  PGDATABASE="$DATABASE" psql --tuples-only --no-align --quiet -v parent_schema=${PARENT_SCHEMA} -v parent_table=${PARENT_TABLE} <<'EOSQL'
+WITH parts as (
+	SELECT
+	   relnamespace::regnamespace as schema,
+	   c.oid::pg_catalog.regclass AS part_name,
+	   regexp_match(pg_get_expr(c.relpartbound, c.oid),
+				  'FOR VALUES FROM \(''(.*)''\) TO \(''(.*)''\)') AS bounds
+	 FROM
+	   pg_catalog.pg_class c JOIN pg_catalog.pg_inherits i ON (c.oid = i.inhrelid)
+	 WHERE i.inhparent = (select oid from pg_class where relnamespace=:'parent_schema'::regnamespace and relname=:'parent_table' and relkind='p')
+	   AND c.relkind='r'
+)
+SELECT
+	schema,
+	part_name as name,
+	bounds[1]::text AS lowerBound,
+	bounds[2]::text AS upperBound
+FROM parts
+ORDER BY bounds[1]::text COLLATE "C";
+
+EOSQL
+}
+
 assert_table_exists() {
   local SCHEMA=$1
   local TABLE=$2
