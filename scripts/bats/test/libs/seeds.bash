@@ -4,8 +4,8 @@ init_database() {
 }
 
 drop_database() {
-  QUERY="DROP DATABASE IF EXISTS unittest WITH ( FORCE );"
-  execute_sql "${QUERY}" postgres
+  QUERY="set lock_timeout to '5s'; DROP DATABASE IF EXISTS unittest;"
+  execute_sql_commands "${QUERY}" postgres
 }
 
 reset_database() {
