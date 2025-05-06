@@ -261,3 +261,99 @@ EOF
   assert_output "$expected_mix"
 
 }
+
+@test "Test provisioning with multiple partition sets in the configuration" {
+  local CONFIGURATION=$(cat << EOF
+partitions:
+  unittest1:
+    schema: public
+    table: table_unittest1
+    interval: daily
+    partitionKey: created_at
+    cleanupPolicy: detach
+    retention: 1
+    preProvisioned: 1
+  unittest2:
+    schema: public
+    table: table_unittest2
+    interval: daily
+    partitionKey: created_at
+    cleanupPolicy: drop
+    retention: 2
+    preProvisioned: 2
+EOF
+)
+  local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
+
+  create_partitioned_table "table_unittest1"
+  create_partitioned_table "table_unittest2"
+
+  PPM_WORK_DATE="2025-02-01" run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
+  assert_success
+
+  local expected1=$(cat <<'EOF'
+public|table_unittest1_2025_01_31|2025-01-31|2025-02-01
+public|table_unittest1_2025_02_01|2025-02-01|2025-02-02
+public|table_unittest1_2025_02_02|2025-02-02|2025-02-03
+EOF
+  )
+  run list_existing_partitions "unittest" "public" "table_unittest1"
+  assert_output "$expected1"
+
+  local expected2=$(cat <<'EOF'
+public|table_unittest2_2025_01_30|2025-01-30|2025-01-31
+public|table_unittest2_2025_01_31|2025-01-31|2025-02-01
+public|table_unittest2_2025_02_01|2025-02-01|2025-02-02
+public|table_unittest2_2025_02_02|2025-02-02|2025-02-03
+public|table_unittest2_2025_02_03|2025-02-03|2025-02-04
+EOF
+  )
+
+  run list_existing_partitions "unittest" "public" "table_unittest2"
+  assert_output "$expected2"
+}
+
+@test "Test that provisioning continues after an error on a partition set" {
+  # Have a non-existing parent table, plus a normal set of partitions
+  local CONFIGURATION=$(cat << EOF
+partitions:
+  unittest1:
+    schema: public
+    table: DOES_NOT_EXIST
+    interval: daily
+    partitionKey: created_at
+    cleanupPolicy: detach
+    retention: 1
+    preProvisioned: 1
+  unittest2:
+    schema: public
+    table: table_unittest2
+    interval: daily
+    partitionKey: created_at
+    cleanupPolicy: drop
+    retention: 2
+    preProvisioned: 2
+EOF
+)
+  local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
+
+  create_partitioned_table "table_unittest2"
+
+  PPM_WORK_DATE="2025-02-01" run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
+
+  # The status must reflect the fact that one partition set failed
+  [ "$status" -eq 4 ]  # PartitionsProvisioningFailedExitCode
+
+  # Check the success of the second set of partitions
+  local expected2=$(cat <<'EOF'
+public|table_unittest2_2025_01_30|2025-01-30|2025-01-31
+public|table_unittest2_2025_01_31|2025-01-31|2025-02-01
+public|table_unittest2_2025_02_01|2025-02-01|2025-02-02
+public|table_unittest2_2025_02_02|2025-02-02|2025-02-03
+public|table_unittest2_2025_02_03|2025-02-03|2025-02-04
+EOF
+  )
+
+  run list_existing_partitions "unittest" "public" "table_unittest2"
+  assert_output "$expected2"
+}
