@@ -18,7 +18,7 @@ setup() {
   local PREPROVISIONED=1
 
   # Create partitioned table
-  create_partitioned_table ${TABLE} ${INTERVAL} ${RETENTION} ${PREPROVISIONED}
+  create_partitioned_table ${TABLE}
 
   local CONFIGURATION=$(cat << EOF
 partitions:
@@ -50,7 +50,7 @@ EOF
   local PREPROVISIONED=1
 
   # Create partitioned table
-  create_partitioned_table ${TABLE} ${INTERVAL} ${RETENTION} ${PREPROVISIONED}
+  create_partitioned_table ${TABLE}
 
   local CONFIGURATION=$(cat << EOF
 partitions:
@@ -98,7 +98,7 @@ EOF
   local EXPECTED_NEXT_TABLE="${TABLE}_$(get_current_date_adjusted_by_month +1)"
 
   # Create partitioned table
-  create_partitioned_table ${TABLE} ${INTERVAL} ${RETENTION} ${PREPROVISIONED}
+  create_partitioned_table ${TABLE}
 
   local CONFIGURATION=$(cat << EOF
 partitions:
@@ -135,7 +135,7 @@ EOF
   local EXPECTED_NEXT_TABLE="${TABLE}_$(get_current_date_adjusted_by_quarter +1)"
 
   # Create partitioned table
-  create_partitioned_table ${TABLE} ${INTERVAL} ${RETENTION} ${PREPROVISIONED}
+  create_partitioned_table ${TABLE}
 
   local CONFIGURATION=$(cat << EOF
 partitions:
@@ -171,7 +171,7 @@ EOF
   local EXPECTED_NEXT_TABLE="${TABLE}_$(get_current_date_adjusted_by_year +1)"
 
   # Create partitioned table
-  create_partitioned_table ${TABLE} ${INTERVAL} ${RETENTION} ${PREPROVISIONED}
+  create_partitioned_table ${TABLE}
 
   local CONFIGURATION=$(cat << EOF
 partitions:
@@ -204,7 +204,7 @@ EOF
   local PREPROVISIONED=1
 
   # Create partitioned table
-  create_partitioned_table ${TABLE} ${INTERVAL} ${RETENTION} ${PREPROVISIONED}
+  create_partitioned_table ${TABLE}
 
   local CONFIGURATION=$(cat << EOF
 partitions:
