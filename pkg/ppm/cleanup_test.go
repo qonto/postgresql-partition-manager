@@ -25,7 +25,6 @@ var OneDayPartitionConfiguration = partition.Configuration{
 var ErrFake = errors.New("fake error")
 
 func TestCleanupPartitions(t *testing.T) {
-	yearBeforePartition, _ := OneDayPartitionConfiguration.GeneratePartition(dayBeforeYesterday.AddDate(-1, 0, 0))
 	dayBeforeYesterdayPartition, _ := OneDayPartitionConfiguration.GeneratePartition(dayBeforeYesterday)
 	yesterdayPartition, _ := OneDayPartitionConfiguration.GeneratePartition(yesterday)
 	currentPartition, _ := OneDayPartitionConfiguration.GeneratePartition(today)
@@ -51,16 +50,16 @@ func TestCleanupPartitions(t *testing.T) {
 			map[string]partition.Configuration{
 				"unittest": dropPartitionConfiguration,
 			},
-			[]partition.Partition{yearBeforePartition, dayBeforeYesterdayPartition, yesterdayPartition, currentPartition, tomorrowPartition, dayAfterTomorrowPartition},
-			[]partition.Partition{yearBeforePartition, dayBeforeYesterdayPartition, dayAfterTomorrowPartition},
+			[]partition.Partition{dayBeforeYesterdayPartition, yesterdayPartition, currentPartition, tomorrowPartition, dayAfterTomorrowPartition},
+			[]partition.Partition{dayBeforeYesterdayPartition, dayAfterTomorrowPartition},
 		},
 		{
 			"Detach useless partitions",
 			map[string]partition.Configuration{
 				"unittest": detachPartitionConfiguration,
 			},
-			[]partition.Partition{yearBeforePartition, dayBeforeYesterdayPartition, yesterdayPartition, currentPartition},
-			[]partition.Partition{yearBeforePartition, dayBeforeYesterdayPartition},
+			[]partition.Partition{dayBeforeYesterdayPartition, yesterdayPartition, currentPartition},
+			[]partition.Partition{dayBeforeYesterdayPartition},
 		},
 		{
 			"No cleanup",
