@@ -3,11 +3,13 @@ load 'test/libs/partitions'
 load 'test/libs/seeds'
 load 'test/libs/sql'
 
+setup_file() {
+  reset_database
+}
+
 setup() {
   bats_load_library bats-support
   bats_load_library bats-assert
-
-  reset_database
 }
 
 @test "Test that useless partitions are removed by the cleanup" {

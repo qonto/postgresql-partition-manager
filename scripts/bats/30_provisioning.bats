@@ -4,11 +4,13 @@ load 'test/libs/seeds'
 load 'test/libs/sql'
 load 'test/libs/time'
 
+setup_file() {
+  reset_database
+}
+
 setup() {
   bats_load_library bats-support
   bats_load_library bats-assert
-
-  reset_database
 }
 
 @test "Test that provisioning succeed on up-to-date partitioning" {
@@ -315,7 +317,10 @@ EOF
 
 @test "Test that provisioning continues after an error on a partition set" {
   # Have a non-existing parent table, plus a normal set of partitions
-  local CONFIGURATION=$(cat << EOF
+
+local TABLE=$(generate_table_name)
+
+local CONFIGURATION=$(cat << EOF
 partitions:
   unittest1:
     schema: public
@@ -327,7 +332,7 @@ partitions:
     preProvisioned: 1
   unittest2:
     schema: public
-    table: table_unittest2
+    table: ${TABLE}
     interval: daily
     partitionKey: created_at
     cleanupPolicy: drop
@@ -337,7 +342,7 @@ EOF
 )
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
-  create_partitioned_table "table_unittest2"
+  create_partitioned_table "${TABLE}"
 
   PPM_WORK_DATE="2025-02-01" run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
 
@@ -345,15 +350,15 @@ EOF
   [ "$status" -eq 4 ]  # PartitionsProvisioningFailedExitCode
 
   # Check the success of the second set of partitions
-  local expected2=$(cat <<'EOF'
-public|table_unittest2_2025_01_30|2025-01-30|2025-01-31
-public|table_unittest2_2025_01_31|2025-01-31|2025-02-01
-public|table_unittest2_2025_02_01|2025-02-01|2025-02-02
-public|table_unittest2_2025_02_02|2025-02-02|2025-02-03
-public|table_unittest2_2025_02_03|2025-02-03|2025-02-04
+  local expected2=$(cat <<EOF
+public|${TABLE}_2025_01_30|2025-01-30|2025-01-31
+public|${TABLE}_2025_01_31|2025-01-31|2025-02-01
+public|${TABLE}_2025_02_01|2025-02-01|2025-02-02
+public|${TABLE}_2025_02_02|2025-02-02|2025-02-03
+public|${TABLE}_2025_02_03|2025-02-03|2025-02-04
 EOF
   )
 
-  run list_existing_partitions "unittest" "public" "table_unittest2"
+  run list_existing_partitions "unittest" "public" "${TABLE}"
   assert_output "$expected2"
 }
