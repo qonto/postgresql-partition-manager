@@ -31,14 +31,16 @@ type PPM struct {
 	db         PostgreSQLClient
 	partitions map[string]partition.Configuration
 	logger     slog.Logger
+	workDate   time.Time
 }
 
-func New(context context.Context, logger slog.Logger, db PostgreSQLClient, partitions map[string]partition.Configuration) *PPM {
+func New(context context.Context, logger slog.Logger, db PostgreSQLClient, partitions map[string]partition.Configuration, workDate time.Time) *PPM {
 	return &PPM{
 		partitions: partitions,
 		ctx:        context,
 		db:         db,
 		logger:     logger,
+		workDate:   workDate,
 	}
 }
 

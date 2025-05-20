@@ -2,6 +2,8 @@ package partition
 
 import (
 	"errors"
+	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,6 +23,57 @@ var (
 
 	ErrUnsupportedUUIDVersion = errors.New("unsupported UUID version")
 )
+
+type PartitionRange struct {
+	LowerBound time.Time
+	UpperBound time.Time
+}
+
+// Bounds provides a concise way to create a PartitionRange
+func Bounds(lBound, uBound time.Time) PartitionRange {
+	return PartitionRange{LowerBound: lBound, UpperBound: uBound}
+}
+
+func (r PartitionRange) String() string {
+	return fmt.Sprintf("[ %s , %s ]", r.LowerBound.Format("02-01-2006"), r.UpperBound.Format("02-01-2006"))
+}
+
+func (r PartitionRange) LogValue() slog.Value {
+	return slog.StringValue(r.String())
+}
+
+func (r PartitionRange) IsEmpty() bool {
+	/* IsEmpty() is true when
+	- either LowerBound.IsZero() is true and UpperBound.IsZero() is true
+	- either the bounds are set (non-zero) but equal
+	*/
+	return r.LowerBound.Equal(r.UpperBound)
+}
+
+func (r PartitionRange) IsEqual(r2 PartitionRange) bool {
+	return r.LowerBound.Equal(r2.LowerBound) && r.UpperBound.Equal(r2.UpperBound)
+}
+
+// Intersection returns the intersection between the intervals r1 and r2
+func (r PartitionRange) Intersection(r2 PartitionRange) PartitionRange {
+	var res PartitionRange // initialized with {time.Time{}, time.Time{}}
+
+	if !(r2.LowerBound.After(r.UpperBound) || r.LowerBound.After(r2.UpperBound)) { // !empty intersection
+		if r.LowerBound.After(r2.LowerBound) {
+			res.LowerBound = r.LowerBound
+		} else {
+			res.LowerBound = r2.LowerBound
+		}
+
+		if r.UpperBound.Before(r2.UpperBound) {
+			res.UpperBound = r.UpperBound
+		} else {
+			res.UpperBound = r2.UpperBound
+		}
+	}
+
+	return res
+}
 
 func getDailyBounds(date time.Time) (lowerBound, upperBound time.Time) {
 	lowerBound = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.UTC().Location())

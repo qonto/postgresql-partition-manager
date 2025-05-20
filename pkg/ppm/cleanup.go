@@ -3,7 +3,6 @@ package ppm
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	partition_pkg "github.com/qonto/postgresql-partition-manager/internal/infra/partition"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/retry"
@@ -12,47 +11,70 @@ import (
 var ErrPartitionCleanupFailed = errors.New("at least one partition could not be cleaned")
 
 func (p PPM) CleanupPartitions() error {
-	currentTime := time.Now()
 	partitionContainAnError := false
 
 	for name, config := range p.partitions {
 		p.logger.Info("Cleaning partition", "partition", name)
 
-		expectedPartitions, err := getExpectedPartitions(config, currentTime)
-		if err != nil {
-			return fmt.Errorf("could not generate expected partitions: %w", err)
-		}
-
+		// Existing
 		foundPartitions, err := p.ListPartitions(config.Schema, config.Table)
 		if err != nil {
 			return fmt.Errorf("could not list partitions: %w", err)
 		}
 
-		unexpected, _, _ := p.comparePartitions(foundPartitions, expectedPartitions)
+		currentRange, err := p.getGlobalRange(foundPartitions)
+		if err != nil {
+			return fmt.Errorf("could not evaluate existing ranges: %w", err)
+		}
 
-		for _, partition := range unexpected {
-			err := p.DetachPartition(partition)
-			if err != nil {
-				partitionContainAnError = true
+		p.logger.Info("Current ", "c_range", currentRange.String())
 
-				p.logger.Error("Failed to detach partition", "schema", partition.Schema, "table", partition.Name, "error", err)
+		// Expected
+		expectedPartitions, err := getExpectedPartitions(config, p.workDate)
+		if err != nil {
+			return fmt.Errorf("could not generate expected partitions: %w", err)
+		}
 
-				continue
-			}
+		expectedRange, err := p.getGlobalRange(expectedPartitions)
+		if err != nil {
+			return fmt.Errorf("could not evaluate ranges to create: %w", err)
+		}
 
-			p.logger.Info("Partition detached", "schema", partition.Schema, "table", partition.Name, "parent_table", partition.ParentTable)
+		p.logger.Info("Expected", "e_range", expectedRange)
 
-			if config.CleanupPolicy == partition_pkg.Drop {
-				err := p.DeletePartition(partition)
+		if expectedRange.IsEqual(currentRange) {
+			continue // nothing to do on this partition set
+		}
+
+		// Each partition whose bounds are entirely outside of expectedRange can be removed
+
+		for _, part := range foundPartitions {
+			if !part.UpperBound.After(expectedRange.LowerBound) || !part.LowerBound.Before(expectedRange.UpperBound) {
+				p.logger.Info("No intersection", "remove-range", partition_pkg.Bounds(part.LowerBound, part.UpperBound))
+
+				err := p.DetachPartition(part)
 				if err != nil {
 					partitionContainAnError = true
 
-					p.logger.Error("Failed to delete partition", "schema", partition.Schema, "table", partition.Name, "error", err)
+					p.logger.Error("Failed to detach partition", "schema", part.Schema, "table", part.Name, "error", err)
 
 					continue
 				}
 
-				p.logger.Info("Partition deleted", "schema", partition.Schema, "table", partition.Name, "parent_table", partition.ParentTable)
+				p.logger.Info("Partition detached", "schema", part.Schema, "table", part.Name, "parent_table", part.ParentTable)
+
+				if config.CleanupPolicy == partition_pkg.Drop {
+					err := p.DeletePartition(part)
+					if err != nil {
+						partitionContainAnError = true
+
+						p.logger.Error("Failed to delete partition", "schema", part.Schema, "table", part.Name, "error", err)
+
+						continue
+					}
+
+					p.logger.Info("Partition deleted", "schema", part.Schema, "table", part.Name, "parent_table", part.ParentTable)
+				}
 			}
 		}
 	}

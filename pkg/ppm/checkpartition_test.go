@@ -107,7 +107,7 @@ func TestCheckPartitions(t *testing.T) {
 		postgreSQLMock.On("ListPartitions", p.Schema, p.Table).Return(convertedTables, nil).Once()
 	}
 
-	checker := ppm.New(context.TODO(), *logger, postgreSQLMock, partitions)
+	checker := ppm.New(context.TODO(), *logger, postgreSQLMock, partitions, time.Now())
 	assert.NilError(t, checker.CheckPartitions(), "Partitions should succeed")
 }
 
@@ -164,7 +164,7 @@ func TestCheckMissingPartitions(t *testing.T) {
 			tables := partitionResultToPartition(t, tc.tables, boundDateFormat)
 			postgreSQLMock.On("ListPartitions", config.Schema, config.Table).Return(tables, nil).Once()
 
-			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, map[string]partition.Configuration{"test": config})
+			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, map[string]partition.Configuration{"test": config}, time.Now())
 			assert.Error(t, checker.CheckPartitions(), "at least one partition contains an invalid configuration")
 		})
 	}
@@ -204,7 +204,7 @@ func TestUnsupportedPartitionsStrategy(t *testing.T) {
 			postgreSQLMock.On("GetColumnDataType", config.Schema, config.Table, config.PartitionKey).Return(postgresql.Date, nil).Once()
 			postgreSQLMock.On("GetPartitionSettings", config.Schema, config.Table).Return(string(tc.strategy), tc.key, nil).Once()
 
-			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, map[string]partition.Configuration{"test": config})
+			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, map[string]partition.Configuration{"test": config}, time.Now())
 			assert.Error(t, checker.CheckPartitions(), "at least one partition contains an invalid configuration")
 		})
 	}

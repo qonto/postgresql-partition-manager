@@ -49,7 +49,7 @@ func TestServerRequirements(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Reset mock on every test case
 			logger, postgreSQLMock := setupMocks(t)
-			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, nil)
+			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, nil, time.Now())
 
 			postgreSQLMock.On("GetEngineVersion").Return(tc.serverVersion, nil).Once()
 			postgreSQLMock.On("GetServerTime").Return(tc.serverTime, nil).Once()

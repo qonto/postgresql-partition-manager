@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/qonto/postgresql-partition-manager/internal/infra/config"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/logger"
@@ -22,6 +23,7 @@ const (
 	PartitionsProvisioningFailedExitCode = 4
 	PartitionsCheckFailedExitCode        = 5
 	PartitionsCleanupFailedExitCode      = 6
+	InvalidDateExitCode                  = 7
 )
 
 var ErrUnsupportedPostgreSQLVersion = errors.New("unsupported PostgreSQL version")
@@ -120,7 +122,20 @@ func initCmd() *ppm.PPM {
 
 	db := postgresql.New(*log, conn)
 
-	client := ppm.New(context.TODO(), *log, db, config.Partitions)
+	workDate := time.Now()
+	stringDate, useExternalDate := os.LookupEnv("PPM_WORK_DATE")
+
+	if useExternalDate {
+		workDate, err = time.Parse(time.DateOnly, stringDate)
+		if err != nil {
+			log.Error("Could not parse PPM_WORK_DATE environment variable", "error", err)
+			os.Exit(InvalidDateExitCode)
+		}
+	}
+
+	log.Info("Work date", "work-date", workDate)
+
+	client := ppm.New(context.TODO(), *log, db, config.Partitions, workDate)
 
 	if err = client.CheckServerRequirements(); err != nil {
 		log.Error("Server is incompatible", "error", err)

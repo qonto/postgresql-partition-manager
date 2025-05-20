@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sort"
 	"time"
 
 	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
@@ -16,6 +17,8 @@ var (
 	ErrPartitionKeyMismatch          = errors.New("mismatch of partition keys between parameters and table")
 	ErrUnexpectedOrMissingPartitions = errors.New("unexpected or missing partitions")
 	ErrInvalidPartitionConfiguration = errors.New("at least one partition contains an invalid configuration")
+	ErrPartitionGap                  = errors.New("gap found in partitions")
+	ErrIncoherentBounds              = errors.New("lower bound greater or equal than upper bound")
 )
 
 var SupportedPartitionKeyDataType = []postgresql.ColumnType{
@@ -178,9 +181,7 @@ func (p *PPM) ListPartitions(schema, table string) (partitions []partition.Parti
 func (p *PPM) checkPartitionsConfiguration(config partition.Configuration) error {
 	partitionContainAnError := false
 
-	currentTime := time.Now()
-
-	expectedPartitions, err := getExpectedPartitions(config, currentTime)
+	expectedPartitions, err := getExpectedPartitions(config, p.workDate)
 	if err != nil {
 		return fmt.Errorf("could not generate expected partitions: %w", err)
 	}
@@ -189,6 +190,20 @@ func (p *PPM) checkPartitionsConfiguration(config partition.Configuration) error
 	if err != nil {
 		return fmt.Errorf("could not list partitions: %w", err)
 	}
+
+	existingRange, err := p.getGlobalRange(foundPartitions)
+	if err != nil {
+		return fmt.Errorf("incorrect set of existing partitions: %w", err)
+	}
+
+	p.logger.Info("Existing range", "range", existingRange)
+
+	expectedRange, err := p.getGlobalRange(expectedPartitions)
+	if err != nil {
+		return fmt.Errorf("incorrect set of expected partitions: %w", err)
+	}
+
+	p.logger.Info("Expected range", "expected", expectedRange)
 
 	unexpected, missing, incorrectBound := p.comparePartitions(foundPartitions, expectedPartitions)
 
@@ -215,4 +230,48 @@ func (p *PPM) checkPartitionsConfiguration(config partition.Configuration) error
 	}
 
 	return nil
+}
+
+/* Return the lower/upper bound of all partitions combined. Any discontinuity is an error */
+func (p *PPM) getGlobalRange(partitions []partition.Partition) (r partition.PartitionRange, err error) {
+	var minBound, maxBound time.Time
+
+	/* sort by lower bounds */
+	sort.Slice(partitions, func(i, j int) bool {
+		return partitions[i].LowerBound.Before(partitions[j].LowerBound)
+	})
+
+	/* check continuity */
+	for i, part := range partitions {
+		if i == 0 {
+			minBound = part.LowerBound
+			maxBound = part.UpperBound
+		} else {
+			if part.LowerBound.Before(minBound) {
+				minBound = part.LowerBound
+			}
+
+			if part.UpperBound.After(maxBound) {
+				maxBound = part.UpperBound
+			}
+		}
+
+		if i > 0 && (partitions[i-1].UpperBound != part.LowerBound) {
+			/* a gap has been detected between the ranges of consecutive partitions */
+			p.logger.Error("Partition Gap", "lower end", partitions[i-1].UpperBound, "upper end", part.LowerBound)
+
+			return partition.PartitionRange{LowerBound: minBound, UpperBound: maxBound}, ErrPartitionGap
+		}
+
+		if part.LowerBound.After(part.UpperBound) || part.LowerBound.Equal(part.UpperBound) {
+			/* the lower bound is greater or equal than
+			   the upper bound: this should never happen
+			   for existing partitions */
+			p.logger.Error("Partition Gap", "lower end", part.LowerBound, "upper end", part.UpperBound)
+
+			return partition.PartitionRange{LowerBound: minBound, UpperBound: maxBound}, ErrIncoherentBounds
+		}
+	}
+
+	return partition.PartitionRange{LowerBound: minBound, UpperBound: maxBound}, nil
 }

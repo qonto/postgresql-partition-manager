@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
@@ -24,7 +25,6 @@ var OneDayPartitionConfiguration = partition.Configuration{
 var ErrFake = errors.New("fake error")
 
 func TestCleanupPartitions(t *testing.T) {
-	yearBeforePartition, _ := OneDayPartitionConfiguration.GeneratePartition(dayBeforeYesterday.AddDate(-1, 0, 0))
 	dayBeforeYesterdayPartition, _ := OneDayPartitionConfiguration.GeneratePartition(dayBeforeYesterday)
 	yesterdayPartition, _ := OneDayPartitionConfiguration.GeneratePartition(yesterday)
 	currentPartition, _ := OneDayPartitionConfiguration.GeneratePartition(today)
@@ -50,16 +50,16 @@ func TestCleanupPartitions(t *testing.T) {
 			map[string]partition.Configuration{
 				"unittest": dropPartitionConfiguration,
 			},
-			[]partition.Partition{yearBeforePartition, dayBeforeYesterdayPartition, yesterdayPartition, currentPartition, tomorrowPartition, dayAfterTomorrowPartition},
-			[]partition.Partition{yearBeforePartition, dayBeforeYesterdayPartition, dayAfterTomorrowPartition},
+			[]partition.Partition{dayBeforeYesterdayPartition, yesterdayPartition, currentPartition, tomorrowPartition, dayAfterTomorrowPartition},
+			[]partition.Partition{dayBeforeYesterdayPartition, dayAfterTomorrowPartition},
 		},
 		{
 			"Detach useless partitions",
 			map[string]partition.Configuration{
 				"unittest": detachPartitionConfiguration,
 			},
-			[]partition.Partition{yearBeforePartition, dayBeforeYesterdayPartition, yesterdayPartition, currentPartition},
-			[]partition.Partition{yearBeforePartition, dayBeforeYesterdayPartition},
+			[]partition.Partition{dayBeforeYesterdayPartition, yesterdayPartition, currentPartition},
+			[]partition.Partition{dayBeforeYesterdayPartition},
 		},
 		{
 			"No cleanup",
@@ -87,7 +87,7 @@ func TestCleanupPartitions(t *testing.T) {
 				}
 			}
 
-			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, tc.partitions)
+			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, tc.partitions, time.Now())
 			err := checker.CleanupPartitions()
 
 			assert.Nil(t, err, "CleanupPartitions should succeed")
@@ -161,7 +161,7 @@ func TestCleanupPartitionsFailover(t *testing.T) {
 	postgreSQLMock.On("DetachPartitionConcurrently", successPartition.Schema, successPartition.Name, successPartition.ParentTable).Return(nil).Once()
 	postgreSQLMock.On("DropTable", successPartition.Schema, successPartition.Name).Return(nil).Once()
 
-	checker := ppm.New(context.TODO(), *logger, postgreSQLMock, configuration)
+	checker := ppm.New(context.TODO(), *logger, postgreSQLMock, configuration, time.Now())
 	err := checker.CleanupPartitions()
 
 	assert.NotNil(t, err, "CleanupPartitions should report an error")
