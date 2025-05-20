@@ -108,3 +108,42 @@ EOF
   assert_failure
   assert_output --partial "Found missing tables"
 }
+
+@test "Test check succeeding with an UUID partition key" {
+  local TABLE="test_uuid_1"
+  local INTERVAL=monthly
+  local RETENTION=2
+  local PREPROVISIONED=2
+
+  create_table_uuid_range ${TABLE}
+
+  declare -a PARTS=(
+      test_uuid_1_2024_12 01937f84-5800-7000-0000-000000000000 01941f29-7c00-7000-0000-000000000000
+      test_uuid_1_2025_01 01941f29-7c00-7000-0000-000000000000 0194bece-a000-7000-0000-000000000000
+      test_uuid_1_2025_02 0194bece-a000-7000-0000-000000000000 01954f00-b000-7000-0000-000000000000
+      test_uuid_1_2025_03 01954f00-b000-7000-0000-000000000000 0195eea5-d400-7000-0000-000000000000
+      test_uuid_1_2025_04 0195eea5-d400-7000-0000-000000000000 01968924-9c00-7000-0000-000000000000
+  )
+
+  create_partitions "$TABLE" "${PARTS[@]}"
+
+  local CONFIGURATION=$(cat << EOF
+partitions:
+  unittest:
+    schema: public
+    table: ${TABLE}
+    interval: ${INTERVAL}
+    partitionKey: id
+    cleanupPolicy: drop
+    retention: ${RETENTION}
+    preProvisioned: ${PREPROVISIONED}
+EOF
+)
+  local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
+
+  PPM_WORK_DATE="2025-02-10" run postgresql-partition-manager run check -c ${CONFIGURATION_FILE}
+
+  assert_success
+  assert_output --partial "All partitions are correctly configured"
+  rm "$CONFIGURATION_FILE"
+}

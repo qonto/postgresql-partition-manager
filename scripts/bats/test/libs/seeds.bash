@@ -26,6 +26,19 @@ EOQ
   execute_sql "${QUERY}"
 }
 
+create_table_uuid_range() {
+  local TABLE="$1"
+
+  read -r -d '' QUERY <<EOQ ||
+  CREATE TABLE ${TABLE} (
+    id              uuid,
+    value	    INT,
+    created_at      DATE NOT NULL
+  ) PARTITION BY RANGE (id);
+EOQ
+  execute_sql "${QUERY}"
+}
+
 generate_configuration_file() {
   local PARTITION_CONFIGURATION=$1
   local CONFIGURATION_TEMPLATE_FILE=configuration/template.yaml
