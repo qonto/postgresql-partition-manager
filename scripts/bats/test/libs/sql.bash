@@ -22,12 +22,11 @@ execute_sql_file() {
 
 # Execute multiple semicolon-separated commands
 execute_sql_commands() {
-  local SQL_COMMANDS=$1
-  local DATABASE=$2
+  # $1: sql commands
+  # $2: dbname (if unset, psql defaults to $PGDATABASE and then $USER)
 
-  PGDATABASE="$DATABASE" psql --tuples-only --no-align --quiet <<EOSQL
-$SQL_COMMANDS
-;
+  psql --tuples-only --no-align --quiet "$2" <<EOSQL
+$1
 EOSQL
 }
 

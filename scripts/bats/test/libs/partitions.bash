@@ -54,3 +54,36 @@ generate_daily_partition_name() {
 generate_table_name() {
   cat /dev/urandom | head -n 1 | base64 | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]' | cut -c -13 | sed -e 's/^[0-9]/a/g'
 }
+
+# Generic method to create child partitions with specified ranges
+# Arguments: parent table and an array of partition definitions
+# The array elements are:
+# [0] partition name
+# [1]   lower bound
+# [2]   upper bound
+# [3] name of next partition
+# [4]   lower bound for next partition
+# ...and so on (3 elements per partition)
+create_partitions() {
+    local tbl="$1"
+    shift
+    local parts=("$@")
+
+    local len=${#parts[*]}
+    if ! (( len % 3 == 0 )); then
+	echo >&2 "The list must have 3 elements per partition (found length=$len)"
+	return 1
+    fi
+    i=0
+    local sql_block="BEGIN;"
+    while (( i < len ))
+    do
+	# Partition names and ranges must be SQL-quoted by the caller if needed
+	sql_block="$sql_block
+	           CREATE TABLE ${parts[i]} PARTITION OF ${tbl} FOR VALUES FROM ('${parts[((i+1))]}') TO ('${parts[((i+2))]}') ;"
+	(( i+=3 ))
+    done
+    sql_block="$sql_block
+		COMMIT;";
+    execute_sql_commands "$sql_block"
+}

@@ -54,7 +54,7 @@ func (r PartitionRange) IsEqual(r2 PartitionRange) bool {
 	return r.LowerBound.Equal(r2.LowerBound) && r.UpperBound.Equal(r2.UpperBound)
 }
 
-// Intersection returns the intersection between the intervals r1 and r2
+// Intersection returns the intersection between the intervals r and r2
 func (r PartitionRange) Intersection(r2 PartitionRange) PartitionRange {
 	var res PartitionRange // initialized with {time.Time{}, time.Time{}}
 
