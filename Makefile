@@ -19,6 +19,19 @@ format:
 build:
 	CGO_ENABLED=0 go build -v -ldflags="-X '$(BUILD_INFO_PACKAGE_PATH).Version=development' -X '$(BUILD_INFO_PACKAGE_PATH).CommitSHA=$(GIT_COMMIT_SHA)' -X '$(BUILD_INFO_PACKAGE_PATH).Date=$(BUILD_DATE)'" -o $(BINARY)
 
+coverage: $(COVER_BINARY)
+	test -d ./coverage-data || mkdir ./coverage-data
+	rm -f ./coverage-data/cov*
+# run tests with the testing package
+	go test -v ./... -cover -test.gocoverdir=$(PWD)/coverage-data -covermode set
+# run e2e test collecting coverage data
+	cd scripts/bats && GOCOVERDIR=$(PWD)/coverage-data bats *.bats
+# merge the collected traces
+	go tool covdata textfmt -i=./coverage-data -o coverage.txt
+	go run github.com/boumenot/gocover-cobertura@latest < coverage.txt > coverage.xml
+	go tool cover -html coverage.txt -o cover.html
+
+
 # build for coverage
 $(COVER_BINARY): build
 	CGO_ENABLED=0 go build -cover -v -ldflags="-X '$(BUILD_INFO_PACKAGE_PATH).Version=development' -X '$(BUILD_INFO_PACKAGE_PATH).CommitSHA=$(GIT_COMMIT_SHA)' -X '$(BUILD_INFO_PACKAGE_PATH).Date=$(BUILD_DATE)'" -o $(COVER_BINARY)
@@ -31,7 +44,8 @@ run:
 install: build
 	GOBIN=/usr/local/bin/ go install -v -ldflags="-X '$(BUILD_INFO_PACKAGE_PATH).Version=development' -X '$(BUILD_INFO_PACKAGE_PATH).CommitSHA=$(GIT_COMMIT_SHA)' -X '$(BUILD_INFO_PACKAGE_PATH).Date=$(BUILD_DATE)'"
 
-bats-test: $(COVER_BINARY)
+.PHONY: bats-test
+bats-test: build $(COVER_BINARY)
 	test -d ./coverage-data || mkdir ./coverage-data
 	cd scripts/bats && GOCOVERDIR=$(PWD)/coverage-data bats *.bats
 
@@ -67,9 +81,6 @@ checkcov:
 test:
 	test -d ./coverage-data || mkdir ./coverage-data
 	go test -v ./... -cover -test.gocoverdir=$(PWD)/coverage-data -covermode set
-	go tool covdata textfmt -i=./coverage-data -o coverage.txt
-	go run github.com/boumenot/gocover-cobertura@latest < coverage.txt > coverage.xml
-	go tool cover -html coverage.txt -o cover.html
 
 .PHONY: lint
 lint:
