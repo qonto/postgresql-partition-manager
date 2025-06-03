@@ -1,3 +1,4 @@
+load 'test/libs/startup'
 load 'test/libs/dependencies'
 load 'test/libs/partitions'
 load 'test/libs/seeds'
@@ -10,10 +11,11 @@ setup_file() {
 setup() {
   bats_load_library bats-support
   bats_load_library bats-assert
+  ppm_setup
 }
 
 @test "Test exit code on PostgreSQL connection error" {
-  run postgresql-partition-manager run check -c configuration/valid.yaml --connection-url an-invalid-connection-url
+  run "$PPM_PROG" run check -c configuration/valid.yaml --connection-url an-invalid-connection-url
 
   assert_failure
   assert_equal "$status" 3
@@ -43,7 +45,7 @@ EOF
 )
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
-  run postgresql-partition-manager run check -c ${CONFIGURATION_FILE}
+  run "$PPM_PROG" run check -c ${CONFIGURATION_FILE}
 
   assert_success
   assert_output --partial "All partitions are correctly configured"
@@ -73,7 +75,7 @@ EOF
 )
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
-  run postgresql-partition-manager run check -c ${CONFIGURATION_FILE}
+  run "$PPM_PROG" run check -c ${CONFIGURATION_FILE}
 
   assert_failure
   assert_output --partial "Found missing tables"
@@ -103,7 +105,7 @@ EOF
 )
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
-  run postgresql-partition-manager run check -c ${CONFIGURATION_FILE}
+  run "$PPM_PROG" run check -c ${CONFIGURATION_FILE}
 
   assert_failure
   assert_output --partial "Found missing tables"
@@ -141,7 +143,7 @@ EOF
 )
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
-  PPM_WORK_DATE="2025-02-10" run postgresql-partition-manager run check -c ${CONFIGURATION_FILE}
+  PPM_WORK_DATE="2025-02-10" run "$PPM_PROG" run check -c ${CONFIGURATION_FILE}
 
   assert_success
   assert_output --partial "All partitions are correctly configured"
