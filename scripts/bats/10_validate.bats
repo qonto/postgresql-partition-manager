@@ -1,11 +1,14 @@
+load 'test/libs/startup'
+
 setup() {
     bats_load_library bats-support
     bats_load_library bats-assert
+    ppm_setup
 }
 
 # Test for program's behavior when the configuration file is empty
 @test "Program should exit when passed an empty configuration file" {
-  run postgresql-partition-manager validate -c /dev/null
+  run "$PPM_PROG" validate -c /dev/null
 
   assert_failure
   assert_equal "$status" 1
@@ -15,7 +18,7 @@ setup() {
 }
 
 @test "Ensure validate command executes successfully with a valid configuration file" {
-  run postgresql-partition-manager validate -c configuration/valid.yaml
+  run "$PPM_PROG" validate -c configuration/valid.yaml
 
   assert_success
   assert_output --partial "Configuration is valid"

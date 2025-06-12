@@ -3,6 +3,7 @@ BUILD_INFO_PACKAGE_PATH=github.com/qonto/postgresql-partition-manager/internal/i
 BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT_SHA=$(shell git rev-parse HEAD)
 BINARY=postgresql-partition-manager
+COVER_BINARY=test-postgresql-partition-manager
 ARCHITECTURE=$(shell uname -m)
 HELM_CHART_NAME=postgresql-partition-manager-chart
 RELEASE_VERSION=$(shell jq .tag dist/metadata.json)
@@ -18,6 +19,23 @@ format:
 build:
 	CGO_ENABLED=0 go build -v -ldflags="-X '$(BUILD_INFO_PACKAGE_PATH).Version=development' -X '$(BUILD_INFO_PACKAGE_PATH).CommitSHA=$(GIT_COMMIT_SHA)' -X '$(BUILD_INFO_PACKAGE_PATH).Date=$(BUILD_DATE)'" -o $(BINARY)
 
+coverage: $(COVER_BINARY)
+	test -d ./coverage-data || mkdir ./coverage-data
+	rm -f ./coverage-data/cov*
+# run tests with the testing package
+	go test -v ./... -cover -test.gocoverdir=$(PWD)/coverage-data -covermode set
+# run e2e test collecting coverage data
+	cd scripts/bats && GOCOVERDIR=$(PWD)/coverage-data bats *.bats
+# merge the collected traces
+	go tool covdata textfmt -i=./coverage-data -o coverage.txt
+	go run github.com/boumenot/gocover-cobertura@latest < coverage.txt > coverage.xml
+	go tool cover -html coverage.txt -o cover.html
+
+
+# build for coverage
+$(COVER_BINARY): build
+	CGO_ENABLED=0 go build -cover -v -ldflags="-X '$(BUILD_INFO_PACKAGE_PATH).Version=development' -X '$(BUILD_INFO_PACKAGE_PATH).CommitSHA=$(GIT_COMMIT_SHA)' -X '$(BUILD_INFO_PACKAGE_PATH).Date=$(BUILD_DATE)'" -o $(COVER_BINARY)
+
 .PHONY: run
 run:
 	./$(BINARY) $(args)
@@ -27,8 +45,9 @@ install: build
 	GOBIN=/usr/local/bin/ go install -v -ldflags="-X '$(BUILD_INFO_PACKAGE_PATH).Version=development' -X '$(BUILD_INFO_PACKAGE_PATH).CommitSHA=$(GIT_COMMIT_SHA)' -X '$(BUILD_INFO_PACKAGE_PATH).Date=$(BUILD_DATE)'"
 
 .PHONY: bats-test
-bats-test:
-	cd scripts/bats && bats *.bats
+bats-test: build $(COVER_BINARY)
+	test -d ./coverage-data || mkdir ./coverage-data
+	cd scripts/bats && GOCOVERDIR=$(PWD)/coverage-data bats *.bats
 
 .PHONY: helm-test
 helm-test:
@@ -60,9 +79,8 @@ checkcov:
 
 .PHONY: test
 test:
-	go test -race -v ./... -coverprofile=coverage.txt -covermode atomic
-	go run github.com/boumenot/gocover-cobertura@latest < coverage.txt > coverage.xml
-	go tool cover -html coverage.txt -o cover.html
+	test -d ./coverage-data || mkdir ./coverage-data
+	go test -v ./... -cover -test.gocoverdir=$(PWD)/coverage-data -covermode set
 
 .PHONY: lint
 lint:

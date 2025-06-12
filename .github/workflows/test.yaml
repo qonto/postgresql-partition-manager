@@ -27,26 +27,7 @@ jobs:
         run: make build
       - name: Run Go tests
         run: make test
-      - name: Code Coverage Report
-        uses: irongut/CodeCoverageSummary@v1.3.0
-        with:
-          filename: coverage.xml
-          badge: true
-          fail_below_min: false
-          format: markdown
-          hide_branch_rate: false
-          hide_complexity: true
-          indicators: true
-          output: both
-          thresholds: '60 80'
-      - uses: jwalton/gh-find-current-pr@v1
-        id: finder
-      - name: Add Coverage PR Comment
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          number: ${{ steps.finder.outputs.pr }}
-          path: code-coverage-results.md
-          recreate: true
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -155,6 +136,75 @@ jobs:
           GORELEASER_CURRENT_TAG: 0.0.0
       - name: Run Debian package tests
         run: make debian-test-ci
+
+  coverage:
+    name: Test Coverage
+    needs: go
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      BATS_LIB_PATH: "${{ github.workspace }}/test/bats/lib/"
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: hackme
+      PGDATABASE: unittest
+    services:
+      postgres:
+        image: postgres:14
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --hostname postgres
+        env:
+          POSTGRES_PASSWORD: hackme
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - name: Install dependencies
+        run: |
+          go get .
+      - name: Build
+        run: make build
+
+      - name: Setup Bats and bats libs
+        uses: bats-core/bats-action@2.0.0
+        with:
+          support-path: ${{ github.workspace }}/test/bats/lib/bats-support
+          assert-path: ${{ github.workspace }}/test/bats/lib/bats-assert
+          file-install: false  # Unused
+          detik-install: false  # Unused
+
+      - name: Run Go and e2e tests
+        run: make coverage
+
+      - name: Code Coverage Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: coverage.xml
+          badge: true
+          fail_below_min: false
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: both
+          thresholds: '60 80'
+      - uses: jwalton/gh-find-current-pr@v1
+        id: finder
+      - name: Add Coverage PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          number: ${{ steps.finder.outputs.pr }}
+          path: code-coverage-results.md
+          recreate: true
 
 #  checkcov:
 #    permissions:

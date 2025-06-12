@@ -1,3 +1,4 @@
+load 'test/libs/startup'
 load 'test/libs/dependencies'
 load 'test/libs/partitions'
 load 'test/libs/seeds'
@@ -11,6 +12,7 @@ setup_file() {
 setup() {
   bats_load_library bats-support
   bats_load_library bats-assert
+  ppm_setup
 }
 
 @test "Test that provisioning succeed on up-to-date partitioning" {
@@ -36,7 +38,7 @@ EOF
 )
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
-  run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
+  run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
 
   assert_success
   assert_output --partial "All partitions are correctly provisioned"
@@ -68,7 +70,7 @@ EOF
 )
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
-  run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
+  run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
 
   assert_success
   assert_output --partial "All partitions are correctly provisioned"
@@ -82,7 +84,7 @@ EOF
   yq eval ".partitions.unittest.retention = ${NEW_RETENTION}" -i ${CONFIGURATION_FILE}
   yq eval ".partitions.unittest.preProvisioned = ${NEW_PREPROVISIONED}" -i ${CONFIGURATION_FILE}
 
-  run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
+  run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
 
   assert_success
   assert_output --partial "All partitions are correctly provisioned"
@@ -118,7 +120,7 @@ EOF
 
   cat ${CONFIGURATION_FILE}
 
-  run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
+  run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
 
   assert_success
   assert_output --partial "All partitions are correctly provisioned"
@@ -153,7 +155,7 @@ EOF
 )
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
-  run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
+  run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
 
 
   assert_success
@@ -189,7 +191,7 @@ EOF
 )
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
-  run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
+  run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
 
   assert_success
   assert_output --partial "All partitions are correctly provisioned"
@@ -222,7 +224,7 @@ EOF
 )
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
-  PPM_WORK_DATE="2025-01-20" run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
+  PPM_WORK_DATE="2025-01-20" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
   assert_success
   assert_output --partial "All partitions are correctly provisioned"
 
@@ -242,7 +244,7 @@ EOF
   yq eval ".partitions.unittest.retention = 2" -i ${CONFIGURATION_FILE}
   yq eval ".partitions.unittest.preProvisioned = 10" -i ${CONFIGURATION_FILE}
 
-  PPM_WORK_DATE="2025-02-01" run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
+  PPM_WORK_DATE="2025-02-01" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
   assert_success
 
   local expected_mix=$(cat <<EOF
@@ -290,7 +292,7 @@ EOF
   create_partitioned_table "table_unittest1"
   create_partitioned_table "table_unittest2"
 
-  PPM_WORK_DATE="2025-02-01" run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
+  PPM_WORK_DATE="2025-02-01" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
   assert_success
 
   local expected1=$(cat <<'EOF'
@@ -344,7 +346,7 @@ EOF
 
   create_partitioned_table "${TABLE}"
 
-  PPM_WORK_DATE="2025-02-01" run postgresql-partition-manager run provisioning -c ${CONFIGURATION_FILE}
+  PPM_WORK_DATE="2025-02-01" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
 
   # The status must reflect the fact that one partition set failed
   [ "$status" -eq 4 ]  # PartitionsProvisioningFailedExitCode

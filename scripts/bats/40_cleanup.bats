@@ -1,3 +1,4 @@
+load 'test/libs/startup'
 load 'test/libs/dependencies'
 load 'test/libs/partitions'
 load 'test/libs/seeds'
@@ -10,6 +11,7 @@ setup_file() {
 setup() {
   bats_load_library bats-support
   bats_load_library bats-assert
+  ppm_setup
 }
 
 @test "Test that useless partitions are removed by the cleanup" {
@@ -46,7 +48,7 @@ EOF
 )
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
-  run postgresql-partition-manager run cleanup -c ${CONFIGURATION_FILE}
+  run "$PPM_PROG" run cleanup -c ${CONFIGURATION_FILE}
 
   assert_success
   assert_output --partial "All partitions are cleaned"
@@ -99,7 +101,7 @@ EOF
   # When run on 2025-03-15 with a retention of 1 month, the partition for 2024-12
   # is old enough to be dropped. But since 2025-01 is missing, it is an error that
   # should prevent the drop.
-  PPM_WORK_DATE="2025-03-15" run postgresql-partition-manager run cleanup -c ${CONFIGURATION_FILE}
+  PPM_WORK_DATE="2025-03-15" run "$PPM_PROG" run cleanup -c ${CONFIGURATION_FILE}
 
   assert_failure
   assert_output --partial 'level=ERROR msg="Partition Gap"'
