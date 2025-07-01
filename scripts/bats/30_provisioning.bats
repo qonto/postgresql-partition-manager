@@ -364,3 +364,55 @@ EOF
   run list_existing_partitions "unittest" "public" "${TABLE}"
   assert_output "$expected2"
 }
+
+@test "Test a timestamptz key with provisioning crossing a DST transition " {
+  local TABLE="test_tz1"
+  local INTERVAL=weekly
+  local RETENTION=3
+  local PREPROVISIONED=2
+
+  declare -x PGTZ="Europe/Paris"
+
+  create_table_timestamptz_range ${TABLE}
+
+  local CONFIGURATION=$(basic_configuration ${TABLE} weekly created_at $RETENTION $PREPROVISIONED)
+  local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
+
+  PPM_WORK_DATE="2025-03-06" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
+  assert_success
+  assert_output --partial "All partitions are correctly provisioned"
+
+  local expected_1=$(cat <<EOF
+public|${TABLE}_2025_w07|2025-02-10 00:00:00+01|2025-02-17 00:00:00+01
+public|${TABLE}_2025_w08|2025-02-17 00:00:00+01|2025-02-24 00:00:00+01
+public|${TABLE}_2025_w09|2025-02-24 00:00:00+01|2025-03-03 00:00:00+01
+public|${TABLE}_2025_w10|2025-03-03 00:00:00+01|2025-03-10 00:00:00+01
+public|${TABLE}_2025_w11|2025-03-10 00:00:00+01|2025-03-17 00:00:00+01
+public|${TABLE}_2025_w12|2025-03-17 00:00:00+01|2025-03-24 00:00:00+01
+EOF
+  )
+
+  run list_existing_partitions "unittest" "public" ${TABLE}
+  assert_output "$expected_1"
+
+  # Now advance one week up to the end of March 2025
+  # The transition to summer time (GMT+1 => GMT+2) occurs at 2025-05-30 02:00 => 03:00
+
+  PPM_WORK_DATE="2025-03-13" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
+  assert_success
+  assert_output --partial "All partitions are correctly provisioned"
+
+  local expected_2=$(cat <<EOF
+public|${TABLE}_2025_w07|2025-02-10 00:00:00+01|2025-02-17 00:00:00+01
+public|${TABLE}_2025_w08|2025-02-17 00:00:00+01|2025-02-24 00:00:00+01
+public|${TABLE}_2025_w09|2025-02-24 00:00:00+01|2025-03-03 00:00:00+01
+public|${TABLE}_2025_w10|2025-03-03 00:00:00+01|2025-03-10 00:00:00+01
+public|${TABLE}_2025_w11|2025-03-10 00:00:00+01|2025-03-17 00:00:00+01
+public|${TABLE}_2025_w12|2025-03-17 00:00:00+01|2025-03-24 00:00:00+01
+public|${TABLE}_2025_w13|2025-03-24 00:00:00+01|2025-03-31 00:00:00+02
+EOF
+)
+  run list_existing_partitions "unittest" "public" ${TABLE}
+  assert_output "$expected_2"
+
+}

@@ -21,18 +21,20 @@ PPM will process all referenced partitions and exit with a non-zero code if it d
 
 - Support of PostgreSQL 14+
 - Only supports [`RANGE` partition strategy](https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-OVERVIEW-RANGE)
-- The partition key must be a column of `date`, `timestamp`, or `uuid` type
+- Gaps are not allowed in-between partitions
+- The partition key must be a column of `date`, `timestamp`, `timestamptz` or `uuid` type
 - Support `daily`, `weekly`, `monthly`, `quarterly`, and `yearly` partitioning
-- Dates are implemented through UTC timezone
-- Partition names are enforced and not configurable
+- Partition names are not configurable
 
   | Partition interval | Pattern                                   | Example           |
   | ------------------ | ----------------------------------------- | ----------------- |
   | daily              | `<parent_table>_<YYYY>_<DD>_<MM>`         | `logs_2024_06_25` |
-  | weekly             | `<parent_table>_w<week number>`           | `logs_2024_w26`   |
+  | weekly             | `<parent_table>_w<ISO week number>`       | `logs_2024_w26`   |
   | quarterly          | `<parent_table>_<YYYY>_q<quarter number>` | `logs_2024_q1`    |
   | monthly            | `<parent_table>_<YYYY>_<MM>`              | `logs_2024_06`    |
   | yearly             | `<parent_table>_<YYYY>`                   | `logs_2024`       |
+
+Whenever that interval is changed in the configuration, the provisioning may create new partitions shorter than the interval and named `<parent_table>_<YYYYDDMM>_<YYYYDDMM>` to fill the gaps between the existing and new partitions. These gaps can range from one day to the new interval size minus one day.
 
 ## Installation
 

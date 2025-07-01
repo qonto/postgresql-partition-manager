@@ -39,6 +39,19 @@ EOQ
   execute_sql "${QUERY}"
 }
 
+create_table_timestamptz_range() {
+  local TABLE="$1"
+
+  read -r -d '' QUERY <<EOQ ||
+  CREATE TABLE ${TABLE} (
+    id              BIGSERIAL,
+    value	    INT,
+    created_at      TIMESTAMPTZ NOT NULL
+  ) PARTITION BY RANGE (created_at);
+EOQ
+  execute_sql "${QUERY}"
+}
+
 generate_configuration_file() {
   local PARTITION_CONFIGURATION=$1
   local CONFIGURATION_TEMPLATE_FILE=configuration/template.yaml
@@ -50,4 +63,20 @@ generate_configuration_file() {
   yq '. as $item ireduce ({}; . * $item )' "${CONFIGURATION_TEMPLATE_FILE}" "${TEMPORARY_FILE}" > "${FILENAME}"
 
   echo $FILENAME
+}
+
+# Return a common configuration
+# Arguments: table interval partition-key retention preprovisioned
+basic_configuration() {
+cat << EOF_conf
+partitions:
+  unittest:
+    schema: public
+    table: $1
+    interval: $2
+    partitionKey: $3
+    cleanupPolicy: drop
+    retention: $4
+    preProvisioned: $5
+EOF_conf
 }
