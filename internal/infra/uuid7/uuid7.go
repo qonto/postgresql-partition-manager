@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-//nolint:gomnd
+//nolint:mnd
 func FromTime(timestamp time.Time) string {
 	// Convert timestamp to Unix time in milliseconds
 	unixMillis := timestamp.UnixNano() / int64(time.Millisecond)
@@ -17,8 +17,8 @@ func FromTime(timestamp time.Time) string {
 	// Ensure the slice is initially 8 bytes to accommodate the full uint64,
 	// but we'll only use the last 6 bytes for the timestamp
 	timeBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(timeBytes, uint64(unixMillis))
-	timeBytes = timeBytes[2:] // Keep the last 6 bytes
+	binary.BigEndian.PutUint64(timeBytes, uint64(unixMillis)) //nolint:gosec
+	timeBytes = timeBytes[2:]                                 // Keep the last 6 bytes
 
 	// Generate random bytes for the rest of the UUID (10 bytes to make it a total of 16)
 	randomBytes := make([]byte, 10)
