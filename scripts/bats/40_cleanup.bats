@@ -63,6 +63,8 @@ EOF
   for ((i=NEW_RETENTION +1; i<= INITIAL_PREPROVISIONED; i++));do
     assert_table_not_exists public $(generate_daily_partition_name ${TABLE} ${i})
   done
+
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test that gaps in the partition set prevent any partition removal" {

@@ -67,8 +67,8 @@ generate_configuration_file() {
 
   local FILENAME=$(mktemp).yaml
   yq '. as $item ireduce ({}; . * $item )' "${CONFIGURATION_TEMPLATE_FILE}" "${TEMPORARY_FILE}" > "${FILENAME}"
-
-  echo $FILENAME
+  rm "${TEMPORARY_FILE}"
+  echo "$FILENAME"
 }
 
 # Return a common configuration

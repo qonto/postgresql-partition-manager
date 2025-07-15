@@ -45,6 +45,8 @@ EOF
   assert_table_exists public $(generate_daily_partition_name ${TABLE} -1) # retention partition
   assert_table_exists public $(generate_daily_partition_name ${TABLE} 0) # current partition
   assert_table_exists public $(generate_daily_partition_name ${TABLE} 1) # preProvisioned partition
+
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test that preProvisioned and retention partitions can be increased" {
@@ -90,6 +92,8 @@ EOF
   assert_output --partial "All partitions are correctly provisioned"
   assert_table_exists public $(generate_daily_partition_name ${TABLE} -${NEW_RETENTION}) # New retention partition
   assert_table_exists public $(generate_daily_partition_name ${TABLE} ${NEW_PREPROVISIONED}) # New preProvisioned partition
+
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test monthly partitions" {
@@ -127,6 +131,8 @@ EOF
   assert_table_exists public ${EXPECTED_LAST_TABLE}
   assert_table_exists public ${EXPECTED_CURRENT_TABLE}
   assert_table_exists public ${EXPECTED_NEXT_TABLE}
+
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test quarterly partitions" {
@@ -157,12 +163,13 @@ EOF
 
   run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
 
-
   assert_success
   assert_output --partial "All partitions are correctly provisioned"
   assert_table_exists public ${EXPECTED_LAST_TABLE}
   assert_table_exists public ${EXPECTED_CURRENT_TABLE}
   assert_table_exists public ${EXPECTED_NEXT_TABLE}
+
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test yearly partitions" {
@@ -198,6 +205,8 @@ EOF
   assert_table_exists public ${EXPECTED_LAST_TABLE}
   assert_table_exists public ${EXPECTED_CURRENT_TABLE}
   assert_table_exists public ${EXPECTED_NEXT_TABLE}
+
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test interval change" {
@@ -264,6 +273,7 @@ EOF
   run list_existing_partitions "unittest" "public" ${TABLE}
   assert_output "$expected_mix"
 
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test provisioning with multiple partition sets in the configuration" {
@@ -315,6 +325,8 @@ EOF
 
   run list_existing_partitions "unittest" "public" "table_unittest2"
   assert_output "$expected2"
+
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test that provisioning continues after an error on a partition set" {
@@ -363,6 +375,8 @@ EOF
 
   run list_existing_partitions "unittest" "public" "${TABLE}"
   assert_output "$expected2"
+
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test a timestamptz key with provisioning crossing a DST transition " {
@@ -414,5 +428,7 @@ EOF
 )
   run list_existing_partitions "unittest" "public" ${TABLE}
   assert_output "$expected_2"
+
+  rm "$CONFIGURATION_FILE"
 
 }
