@@ -52,7 +52,7 @@ generate_daily_partition_name() {
 }
 
 generate_table_name() {
-  cat /dev/urandom | head -n 1 | base64 | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]' | cut -c -13 | sed -e 's/^[0-9]/a/g'
+  echo "tbl_"$(random_suffix)
 }
 
 # Generic method to create child partitions with specified ranges

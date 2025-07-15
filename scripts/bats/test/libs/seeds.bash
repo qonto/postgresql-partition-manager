@@ -1,3 +1,9 @@
+# Emit a random string suitable for unquoted database identifiers (lower case, ASCII)
+# The result may start with a number.
+random_suffix() {
+  head -c 12 /dev/urandom | base64 | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]'
+}
+
 init_database() {
   QUERY="CREATE DATABASE unittest;"
   execute_sql "${QUERY}" postgres
