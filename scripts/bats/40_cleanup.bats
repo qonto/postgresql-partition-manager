@@ -5,7 +5,11 @@ load 'test/libs/seeds'
 load 'test/libs/sql'
 
 setup_file() {
-  reset_database
+  init_database
+}
+
+teardown_file() {
+  drop_database
 }
 
 setup() {
@@ -63,6 +67,8 @@ EOF
   for ((i=NEW_RETENTION +1; i<= INITIAL_PREPROVISIONED; i++));do
     assert_table_not_exists public $(generate_daily_partition_name ${TABLE} ${i})
   done
+
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test that gaps in the partition set prevent any partition removal" {
@@ -117,7 +123,7 @@ EOF
     expected+="public|${PARTS[i]}|${PARTS[i+1]}|${PARTS[i+2]}"
     (( i+=3 ))
   done
-  run list_existing_partitions "unittest" "public" "${TABLE}"
+  run list_existing_partitions "public" "${TABLE}"
 
   assert_output "$expected"
 

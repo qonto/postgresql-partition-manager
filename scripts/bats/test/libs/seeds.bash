@@ -1,11 +1,21 @@
+# Emit a random string suitable for unquoted database identifiers (lower case, ASCII)
+# The result may start with a number.
+random_suffix() {
+  head -c 12 /dev/urandom | base64 | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]'
+}
+
 init_database() {
-  QUERY="CREATE DATABASE unittest;"
+  local dbname="ppm_test_"$(random_suffix)
+  QUERY="CREATE DATABASE \"$dbname\" ;"
   execute_sql "${QUERY}" postgres
+  export PPM_DATABASE="$dbname"
+  export PGDATABASE="$dbname"
 }
 
 drop_database() {
-  QUERY="set lock_timeout to '5s'; DROP DATABASE IF EXISTS unittest;"
+  QUERY="set lock_timeout to '5s'; DROP DATABASE IF EXISTS \"$PPM_DATABASE\" ;"
   execute_sql_commands "${QUERY}" postgres
+  unset PPM_DATABASE
 }
 
 reset_database() {
@@ -23,7 +33,7 @@ create_table_from_template() {
     created_at      DATE NOT NULL
   ) PARTITION BY RANGE (created_at);
 EOQ
-  execute_sql "${QUERY}"
+  execute_sql "${QUERY}" "${PPM_DATABASE}"
 }
 
 create_table_uuid_range() {
@@ -61,8 +71,8 @@ generate_configuration_file() {
 
   local FILENAME=$(mktemp).yaml
   yq '. as $item ireduce ({}; . * $item )' "${CONFIGURATION_TEMPLATE_FILE}" "${TEMPORARY_FILE}" > "${FILENAME}"
-
-  echo $FILENAME
+  rm "${TEMPORARY_FILE}"
+  echo "$FILENAME"
 }
 
 # Return a common configuration

@@ -5,7 +5,11 @@ load 'test/libs/seeds'
 load 'test/libs/sql'
 
 setup_file() {
-  reset_database
+  init_database
+}
+
+teardown_file() {
+  drop_database
 }
 
 setup() {
@@ -49,6 +53,7 @@ EOF
 
   assert_success
   assert_output --partial "All partitions are correctly configured"
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test check return an error when retention partitions are missing" {
@@ -79,6 +84,7 @@ EOF
 
   assert_failure
   assert_output --partial "Found missing tables"
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test check return an error when preProvisioned partitions are missing" {
@@ -109,6 +115,7 @@ EOF
 
   assert_failure
   assert_output --partial "Found missing tables"
+  rm "$CONFIGURATION_FILE"
 }
 
 @test "Test check succeeding with an UUID partition key" {
