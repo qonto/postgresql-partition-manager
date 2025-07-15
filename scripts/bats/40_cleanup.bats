@@ -5,7 +5,11 @@ load 'test/libs/seeds'
 load 'test/libs/sql'
 
 setup_file() {
-  reset_database
+  init_database
+}
+
+teardown_file() {
+  drop_database
 }
 
 setup() {
@@ -119,7 +123,7 @@ EOF
     expected+="public|${PARTS[i]}|${PARTS[i+1]}|${PARTS[i+2]}"
     (( i+=3 ))
   done
-  run list_existing_partitions "unittest" "public" "${TABLE}"
+  run list_existing_partitions "public" "${TABLE}"
 
   assert_output "$expected"
 

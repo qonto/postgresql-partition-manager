@@ -2,7 +2,7 @@ execute_sql() {
   local SQL_COMMAND=$1
   local DATABASE=$2
 
-  if [ -z ${DATABASE} ]; then
+  if [ -z "$DATABASE" ]; then
     psql --echo-all --echo-errors -c "${SQL_COMMAND}"
   else
     psql --echo-all --echo-errors --dbname="${DATABASE}" -c "${SQL_COMMAND}"
@@ -13,7 +13,7 @@ execute_sql_file() {
   local SQL_FILE=$1
   local DATABASE=$2
 
-  if [ -z ${DATABASE} ]; then
+  if [ -z "$DATABASE" ]; then
     psql --echo-all --echo-errors -f "${SQL_FILE}"
   else
     psql --echo-all --echo-errors --dbname="${DATABASE}" -f "${SQL_FILE}"
@@ -25,16 +25,23 @@ execute_sql_commands() {
   # $1: sql commands
   # $2: dbname (if unset, psql defaults to $PGDATABASE and then $USER)
 
-  psql --tuples-only --no-align --quiet "$2" <<EOSQL
+  local command="psql --tuples-only --no-align --quiet"
+
+  if [ ! -z "$2" ]; then
+    command="$command --dbname=$2"
+  fi
+
+  $command <<EOSQL
 $1
 EOSQL
 }
 
 list_existing_partitions() {
-  local DATABASE=$1
-  local PARENT_SCHEMA=$2
-  local PARENT_TABLE=$3
-  PGDATABASE="$DATABASE" psql --tuples-only --no-align --quiet -v parent_schema=${PARENT_SCHEMA} -v parent_table=${PARENT_TABLE} <<'EOSQL'
+  # mandatory arguments
+  local PARENT_SCHEMA=$1
+  local PARENT_TABLE=$2
+
+  psql --tuples-only --no-align --quiet --dbname="$PPM_DATABASE" -v parent_schema=${PARENT_SCHEMA} -v parent_table=${PARENT_TABLE} <<'EOSQL'
 WITH parts as (
 	SELECT
 	   relnamespace::regnamespace as schema,
@@ -58,8 +65,8 @@ EOSQL
 }
 
 assert_table_exists() {
-  local SCHEMA=$1
-  local TABLE=$2
+  local SCHEMA="$1"
+  local TABLE="$2"
 
   local QUERY="SELECT EXISTS (
     SELECT
@@ -68,15 +75,15 @@ assert_table_exists() {
     AND table_name = '${TABLE}'
   );"
 
-  run psql --tuples-only --no-align -c "${QUERY}"
+  run psql --dbname="$PPM_DATABASE" --tuples-only --no-align -c "${QUERY}"
 
   assert_success
   assert_output t
 }
 
 assert_table_not_exists() {
-  local SCHEMA=$1
-  local TABLE=$2
+  local SCHEMA="$1"
+  local TABLE="$2"
 
   local QUERY="SELECT EXISTS (
     SELECT
@@ -85,7 +92,7 @@ assert_table_not_exists() {
     AND table_name = '${TABLE}'
   );"
 
-  run psql --tuples-only --no-align -c "${QUERY}"
+  run psql --dbname="$PPM_DATABASE" --tuples-only --no-align -c "${QUERY}"
 
   assert_success
   assert_output f

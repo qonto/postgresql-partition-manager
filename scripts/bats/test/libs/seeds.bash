@@ -5,13 +5,17 @@ random_suffix() {
 }
 
 init_database() {
-  QUERY="CREATE DATABASE unittest;"
+  local dbname="ppm_test_"$(random_suffix)
+  QUERY="CREATE DATABASE \"$dbname\" ;"
   execute_sql "${QUERY}" postgres
+  export PPM_DATABASE="$dbname"
+  export PGDATABASE="$dbname"
 }
 
 drop_database() {
-  QUERY="set lock_timeout to '5s'; DROP DATABASE IF EXISTS unittest;"
+  QUERY="set lock_timeout to '5s'; DROP DATABASE IF EXISTS \"$PPM_DATABASE\" ;"
   execute_sql_commands "${QUERY}" postgres
+  unset PPM_DATABASE
 }
 
 reset_database() {
@@ -29,7 +33,7 @@ create_table_from_template() {
     created_at      DATE NOT NULL
   ) PARTITION BY RANGE (created_at);
 EOQ
-  execute_sql "${QUERY}"
+  execute_sql "${QUERY}" "${PPM_DATABASE}"
 }
 
 create_table_uuid_range() {

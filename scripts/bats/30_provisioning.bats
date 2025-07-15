@@ -6,7 +6,11 @@ load 'test/libs/sql'
 load 'test/libs/time'
 
 setup_file() {
-  reset_database
+  init_database
+}
+
+teardown_file() {
+  drop_database
 }
 
 setup() {
@@ -237,7 +241,7 @@ EOF
   assert_success
   assert_output --partial "All partitions are correctly provisioned"
 
-  run list_existing_partitions "unittest" "public" ${TABLE}
+  run list_existing_partitions "public" ${TABLE}
 
   local expected_monthly=$(cat <<EOF
 public|test_interv_2024_12|2024-12-01|2025-01-01
@@ -270,7 +274,7 @@ public|test_interv_2025_w15|2025-04-07|2025-04-14
 EOF
   )
 
-  run list_existing_partitions "unittest" "public" ${TABLE}
+  run list_existing_partitions "public" ${TABLE}
   assert_output "$expected_mix"
 
   rm "$CONFIGURATION_FILE"
@@ -311,7 +315,7 @@ public|table_unittest1_2025_02_01|2025-02-01|2025-02-02
 public|table_unittest1_2025_02_02|2025-02-02|2025-02-03
 EOF
   )
-  run list_existing_partitions "unittest" "public" "table_unittest1"
+  run list_existing_partitions "public" "table_unittest1"
   assert_output "$expected1"
 
   local expected2=$(cat <<'EOF'
@@ -323,7 +327,7 @@ public|table_unittest2_2025_02_03|2025-02-03|2025-02-04
 EOF
   )
 
-  run list_existing_partitions "unittest" "public" "table_unittest2"
+  run list_existing_partitions "public" "table_unittest2"
   assert_output "$expected2"
 
   rm "$CONFIGURATION_FILE"
@@ -373,7 +377,7 @@ public|${TABLE}_2025_02_03|2025-02-03|2025-02-04
 EOF
   )
 
-  run list_existing_partitions "unittest" "public" "${TABLE}"
+  run list_existing_partitions "public" "${TABLE}"
   assert_output "$expected2"
 
   rm "$CONFIGURATION_FILE"
@@ -406,7 +410,7 @@ public|${TABLE}_2025_w12|2025-03-17 00:00:00+01|2025-03-24 00:00:00+01
 EOF
   )
 
-  run list_existing_partitions "unittest" "public" ${TABLE}
+  run list_existing_partitions "public" ${TABLE}
   assert_output "$expected_1"
 
   # Now advance one week up to the end of March 2025
@@ -426,7 +430,7 @@ public|${TABLE}_2025_w12|2025-03-17 00:00:00+01|2025-03-24 00:00:00+01
 public|${TABLE}_2025_w13|2025-03-24 00:00:00+01|2025-03-31 00:00:00+02
 EOF
 )
-  run list_existing_partitions "unittest" "public" ${TABLE}
+  run list_existing_partitions "public" ${TABLE}
   assert_output "$expected_2"
 
   rm "$CONFIGURATION_FILE"

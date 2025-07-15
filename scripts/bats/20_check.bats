@@ -5,7 +5,11 @@ load 'test/libs/seeds'
 load 'test/libs/sql'
 
 setup_file() {
-  reset_database
+  init_database
+}
+
+teardown_file() {
+  drop_database
 }
 
 setup() {

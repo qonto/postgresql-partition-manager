@@ -41,7 +41,7 @@ generate_daily_partition() {
   local UPPER_BOUND=$(date -d "@$(( $(date +%s) + 86400 * $TIMEDELTA + 86400))" +"%Y-%m-%d")
 
   local QUERY="CREATE TABLE ${TABLE_NAME} PARTITION OF ${PARENT_TABLE} FOR VALUES FROM ('${LOWER_BOUND}') TO ('${UPPER_BOUND}');"
-  execute_sql "${QUERY}"
+  execute_sql "${QUERY}" "$PPM_DATABASE"
 }
 
 generate_daily_partition_name() {
@@ -85,5 +85,5 @@ create_partitions() {
     done
     sql_block="$sql_block
 		COMMIT;";
-    execute_sql_commands "$sql_block"
+    execute_sql_commands "$sql_block" "$PPM_DATABASE"
 }
