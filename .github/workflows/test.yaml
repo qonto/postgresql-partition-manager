@@ -16,7 +16,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
@@ -67,7 +67,7 @@ jobs:
           - 5432:5432
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Bats and bats libs
         uses: bats-core/bats-action@2.0.0
@@ -95,7 +95,7 @@ jobs:
     env:
       HELM_UNITTEST_VERSION: v0.3.5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install helm-unittest
         run: helm plugin install --version $HELM_UNITTEST_VERSION https://github.com/helm-unittest/helm-unittest.git
       - name: Run Helm test
@@ -107,7 +107,7 @@ jobs:
     env:
       KUBECONFORM_VERSION: 0.6.2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install kubeconform
         run: |
           curl -sSLo /tmp/kubeconform.tar.gz "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
@@ -119,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v5
@@ -164,7 +164,7 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
@@ -212,7 +212,7 @@ jobs:
 #      actions: read  # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
 #    runs-on: ubuntu-latest
 #    steps:
-#      - uses: actions/checkout@v4
+#      - uses: actions/checkout@v5
 #      - name: Checkov GitHub Action
 #        uses: bridgecrewio/checkov-action@v12
 #        with:
