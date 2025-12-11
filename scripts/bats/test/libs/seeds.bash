@@ -28,7 +28,7 @@ create_table_from_template() {
 
   read -r -d '' QUERY <<EOQ ||
   CREATE TABLE ${TABLE} (
-    id              BIGSERIAL,
+    id              BIGSERIAL NOT NULL,
     temperature     INT,
     created_at      DATE NOT NULL
   ) PARTITION BY RANGE (created_at);

@@ -24,6 +24,7 @@ type PostgreSQLClient interface {
 	DropTable(schema, table string) error
 	DetachPartitionConcurrently(schema, table, parent string) error
 	FinalizePartitionDetach(schema, table, parent string) error
+	SetPartitionReplicaIdentity(schema, table, parent string) error
 }
 
 type PPM struct {

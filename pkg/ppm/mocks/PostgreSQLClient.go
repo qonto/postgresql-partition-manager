@@ -28,6 +28,20 @@ func (_m *PostgreSQLClient) AttachPartition(schema string, table string, parent 
 	return r0
 }
 
+// SetPartitionReplicaIdentity provides a mock function with given fields: schema, table, parent
+func (_m *PostgreSQLClient) SetPartitionReplicaIdentity(schema string, table string, parent string) error {
+	ret := _m.Called(schema, table, parent)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(schema, table, parent)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // CreateTableLikeTable provides a mock function with given fields: schema, table, parent
 func (_m *PostgreSQLClient) CreateTableLikeTable(schema string, table string, parent string) error {
 	ret := _m.Called(schema, table, parent)
