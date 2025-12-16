@@ -140,3 +140,58 @@ func (p Postgres) GetPartitionSettings(schema, table string) (strategy, key stri
 
 	return strategy, key, nil
 }
+
+func (p Postgres) SetPartitionReplicaIdentity(schema, table, parent string) error {
+	var replIdent string
+
+	// Get the replica identity of the parent
+	queryRi := "SELECT relreplident::text from pg_class c JOIN pg_namespace n ON (n.oid=c.relnamespace) WHERE n.nspname=$1 AND c.relname=$2"
+
+	err := p.conn.QueryRow(p.ctx, queryRi, schema, parent).Scan(&replIdent)
+	if err != nil {
+		return fmt.Errorf("failed to check pg_class.relreplident for parent table: %w", err)
+	}
+
+	if replIdent == "f" { // replica identity = full
+		queryFull := fmt.Sprintf("ALTER TABLE %s.%s REPLICA IDENTITY FULL", schema, table)
+		p.logger.Debug("Set identity full", "query", queryFull)
+
+		_, err = p.conn.Exec(p.ctx, queryFull)
+		if err != nil {
+			return fmt.Errorf("failed to set replica identity: %w", err)
+		}
+	} else if replIdent == "i" { // replica identity = specific index
+		var indexName string
+		/* This query finds the index that is a child of the (only) index
+		   in the parent table having "indisreplident"=true.
+		   "pg_inherits" holds the (parent-index, child-index) relationship. */
+		queryIdx := `
+SELECT c_idx_child.relname
+  FROM pg_index i_parent JOIN pg_inherits inh ON (inh.inhparent=i_parent.indexrelid)
+  JOIN pg_index i_child ON (i_child.indexrelid=inh.inhrelid)
+  JOIN pg_class c_parent ON (c_parent.oid=i_parent.indrelid)
+  JOIN pg_namespace ON (pg_namespace.oid=c_parent.relnamespace)
+  JOIN pg_class c_idx_child ON (c_idx_child.oid=inh.inhrelid)
+  JOIN pg_class c_child ON (c_child.oid=i_child.indrelid)
+ WHERE pg_namespace.nspname= $1
+ AND c_parent.relname = $2
+ AND i_parent.indisreplident=true
+ AND c_child.relname = $3
+`
+
+		err = p.conn.QueryRow(p.ctx, queryIdx, schema, parent, table).Scan(&indexName)
+		if err != nil {
+			return fmt.Errorf("failed to find the child index for the new partition: %w", err)
+		}
+
+		queryAlter := fmt.Sprintf("ALTER TABLE %s.%s REPLICA IDENTITY USING INDEX %s", schema, table, indexName)
+		p.logger.Debug("Set replica identity", "schema", schema, "table", table, "index", indexName, "query", queryAlter)
+
+		_, err := p.conn.Exec(p.ctx, queryAlter)
+		if err != nil {
+			return fmt.Errorf("failed to set replica identity on the new partition: %w", err)
+		}
+	}
+
+	return nil
+}

@@ -19,6 +19,7 @@ setup() {
   ppm_setup
 }
 
+
 @test "Test that provisioning succeed on up-to-date partitioning" {
   local TABLE=$(generate_table_name)
   local INTERVAL=daily
@@ -434,5 +435,44 @@ EOF
   assert_output "$expected_2"
 
   rm "$CONFIGURATION_FILE"
+}
 
+
+@test "Test setting Replica Identity on new partitions" {
+  local TABLE=$(generate_table_name)
+  create_partitioned_table ${TABLE}
+
+  local CONFIGURATION=$(basic_configuration "$TABLE" monthly created_at 1 2)
+  local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
+
+  execute_sql "CREATE UNIQUE INDEX idx_ri_test ON \"${TABLE}\"(created_at, id);"
+  execute_sql "ALTER TABLE \"${TABLE}\" REPLICA IDENTITY USING INDEX idx_ri_test;"
+
+  PPM_WORK_DATE="2026-01-01" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
+  assert_success
+  assert_output --partial "All partitions are correctly provisioned"
+
+  # The 4 partitions should all have the replica identity set to "i"
+  local check_query="SELECT array_agg(relreplident ORDER BY relname) FROM pg_class WHERE oid in
+   (SELECT inhrelid from pg_inherits where inhparent='\"$TABLE\"'::regclass);"
+
+  run execute_sql_commands "$check_query"
+  assert_output "{i,i,i,i}"
+
+  # Switch the parent replica identity to "full". Afterwards it must be applied to
+  # newly created partitions
+  execute_sql "ALTER TABLE \"${TABLE}\" REPLICA IDENTITY FULL;"
+
+  # Increment the provisioning by one month and run the test again
+  yq eval ".partitions.unittest.preProvisioned = 3" -i ${CONFIGURATION_FILE}
+  PPM_WORK_DATE="2026-01-01" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
+  assert_success
+  assert_output --partial "All partitions are correctly provisioned"
+
+  # Now the most recent partition should have its replica identity to full
+  # and the others to indexes
+  run execute_sql_commands "$check_query"
+  assert_output "{i,i,i,i,f}"
+
+  rm "$CONFIGURATION_FILE"
 }

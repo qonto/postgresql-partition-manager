@@ -167,6 +167,13 @@ func (p PPM) CreatePartition(partitionConfiguration partition.Configuration, par
 			return fmt.Errorf("fail to attach partition: %w", err)
 		}
 
+		err = p.db.SetPartitionReplicaIdentity(partition.Schema, partition.Name, partition.ParentTable)
+		if err != nil {
+			p.logger.Warn("failed to set replica identity", "error", err, "schema", partition.Schema, "table", partition.Name, "attempt", attempt, "max_retries", maxRetries)
+
+			return fmt.Errorf("fail to set replica identity: %w", err)
+		}
+
 		return nil
 	})
 	if err != nil {
