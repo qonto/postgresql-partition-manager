@@ -476,3 +476,36 @@ EOF
 
   rm "$CONFIGURATION_FILE"
 }
+
+@test "Test provisioning with special chars in the table name" {
+  local CONFIGURATION=$(cat << EOF
+partitions:
+  unittest1:
+    schema: public
+    table: table's name
+    interval: daily
+    partitionKey: created_at
+    cleanupPolicy: detach
+    retention: 1
+    preProvisioned: 1
+EOF
+)
+  local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
+
+  create_partitioned_table "\"table's name\""
+
+  PPM_WORK_DATE="2025-02-01" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
+  assert_success
+
+  local expected=$(cat <<'EOF'
+public|table's name_2025_01_31|2025-01-31|2025-02-01
+public|table's name_2025_02_01|2025-02-01|2025-02-02
+public|table's name_2025_02_02|2025-02-02|2025-02-03
+EOF
+  )
+  run list_existing_partitions "public" "table's name"
+  assert_output "$expected"
+
+
+  rm "$CONFIGURATION_FILE"
+}

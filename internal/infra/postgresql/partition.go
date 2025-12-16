@@ -24,11 +24,13 @@ type PartitionResult struct {
 }
 
 func (p Postgres) IsPartitionAttached(schema, table string) (exists bool, err error) {
-	query := `SELECT EXISTS(
-		SELECT 1 FROM pg_inherits WHERE inhrelid = $1::regclass
-	)`
+	query := `SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits WHERE inhrelid = (SELECT c.oid
+		        FROM pg_catalog.pg_class c
+		        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+		        WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind='r'))
+	`
 
-	err = p.conn.QueryRow(p.ctx, query, fmt.Sprintf("%s.%s", schema, table)).Scan(&exists)
+	err = p.conn.QueryRow(p.ctx, query, schema, table).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("failed to check partition attachment: %w", err)
 	}
@@ -37,7 +39,10 @@ func (p Postgres) IsPartitionAttached(schema, table string) (exists bool, err er
 }
 
 func (p Postgres) AttachPartition(schema, table, parent, lowerBound, upperBound string) error {
-	query := fmt.Sprintf("ALTER TABLE %s.%s ATTACH PARTITION %s.%s FOR VALUES FROM ('%s') TO ('%s')", schema, parent, schema, table, lowerBound, upperBound)
+	query := fmt.Sprintf("ALTER TABLE %s ATTACH PARTITION %s FOR VALUES FROM ('%s') TO ('%s')",
+		pgx.Identifier{schema, parent}.Sanitize(),
+		pgx.Identifier{schema, table}.Sanitize(),
+		lowerBound, upperBound)
 	p.logger.Debug("Attach partition", "query", query, "schema", schema, "table", table)
 
 	_, err := p.conn.Exec(p.ctx, query)
@@ -52,7 +57,10 @@ func (p Postgres) AttachPartition(schema, table, parent, lowerBound, upperBound 
 // The partition still exists as standalone table after detaching
 // More info: https://www.postgresql.org/docs/current/sql-altertable.html#SQL-ALTERTABLE-DETACH-PARTITION
 func (p Postgres) DetachPartitionConcurrently(schema, table, parent string) error {
-	query := fmt.Sprintf(`ALTER TABLE %s.%s DETACH PARTITION %s.%s CONCURRENTLY`, schema, parent, schema, table)
+	query := fmt.Sprintf("ALTER TABLE %s DETACH PARTITION %s CONCURRENTLY",
+		pgx.Identifier{schema, parent}.Sanitize(),
+		pgx.Identifier{schema, table}.Sanitize())
+
 	p.logger.Debug("Detach partition", "schema", schema, "table", table, "query", query, "parent_table", parent)
 
 	_, err := p.conn.Exec(p.ctx, query)
@@ -67,7 +75,9 @@ func (p Postgres) DetachPartitionConcurrently(schema, table, parent string) erro
 // It's required when a partition is in "detach pending" status.
 // More info: https://www.postgresql.org/docs/current/sql-altertable.html#SQL-ALTERTABLE-DETACH-PARTITION
 func (p Postgres) FinalizePartitionDetach(schema, table, parent string) error {
-	query := fmt.Sprintf(`ALTER TABLE %s.%s DETACH PARTITION %s.%s FINALIZE`, schema, parent, schema, table)
+	query := fmt.Sprintf(`ALTER TABLE %s DETACH PARTITION %s FINALIZE`,
+		pgx.Identifier{schema, parent}.Sanitize(),
+		pgx.Identifier{schema, table}.Sanitize())
 	p.logger.Debug("finialize detach partition", "schema", schema, "table", table, "query", query, "parent_table", parent)
 
 	_, err := p.conn.Exec(p.ctx, query)
@@ -79,28 +89,33 @@ func (p Postgres) FinalizePartitionDetach(schema, table, parent string) error {
 }
 
 func (p Postgres) ListPartitions(schema, table string) (partitions []PartitionResult, err error) {
-	query := fmt.Sprintf(`
+	query := `
 	WITH parts as (
 		SELECT
-		   relnamespace::regnamespace as schema,
-		   c.oid::pg_catalog.regclass AS part_name,
+		   n.nspname as schema,
+		   c.relname AS part_name,
 		   regexp_match(pg_get_expr(c.relpartbound, c.oid),
 					  'FOR VALUES FROM \(''(.*)''\) TO \(''(.*)''\)') AS bounds
 		 FROM
 		   pg_catalog.pg_class c JOIN pg_catalog.pg_inherits i ON (c.oid = i.inhrelid)
-		 WHERE i.inhparent = '%s.%s'::regclass
+		   JOIN pg_catalog.pg_namespace n ON (c.relnamespace = n.oid)
+		 WHERE i.inhparent = (SELECT c.oid
+                       FROM pg_catalog.pg_class c
+                       JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                       WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind='p' -- parent
+                   )
 		   AND c.relkind='r'
 	)
 	SELECT
 		schema,
 		part_name as name,
-		'%s' as parentTable,
+		$2 as parentTable,
 		bounds[1]::text AS lowerBound,
 		bounds[2]::text AS upperBound
 	FROM parts
-	ORDER BY part_name;`, schema, table, table)
+	ORDER BY part_name`
 
-	rows, err := p.conn.Query(p.ctx, query)
+	rows, err := p.conn.Query(p.ctx, query, schema, table)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list partitions: %w", err)
 	}
@@ -119,12 +134,15 @@ func (p Postgres) GetPartitionSettings(schema, table string) (strategy, key stri
 	// pg_get_partkeydef() is a system function returning the definition of a partitioning key
 	// It return a text string: <partitioningStrategy> (<partitioning key definition>)
 	// Example for RANGE (created_at)
-	query := fmt.Sprintf(`
+	query := `
 	SELECT regexp_match(partkeydef, '^(.*) \((.*)\)$')
-	FROM pg_catalog.pg_get_partkeydef('%s.%s'::regclass) as partkeydef
-	`, schema, table)
+	 FROM pg_catalog.pg_get_partkeydef((SELECT c.oid
+		        FROM pg_catalog.pg_class c
+		        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+		        WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind='p')) as partkeydef
+	`
 
-	err = p.conn.QueryRow(p.ctx, query).Scan(&partkeydef)
+	err = p.conn.QueryRow(p.ctx, query, schema, table).Scan(&partkeydef)
 	if err != nil {
 		p.logger.Warn("failed to get partitioning key", "error", err, "schema", schema, "table", table)
 
@@ -153,7 +171,8 @@ func (p Postgres) SetPartitionReplicaIdentity(schema, table, parent string) erro
 	}
 
 	if replIdent == "f" { // replica identity = full
-		queryFull := fmt.Sprintf("ALTER TABLE %s.%s REPLICA IDENTITY FULL", schema, table)
+		queryFull := fmt.Sprintf("ALTER TABLE %s REPLICA IDENTITY FULL",
+			pgx.Identifier{schema, table}.Sanitize())
 		p.logger.Debug("Set identity full", "query", queryFull)
 
 		_, err = p.conn.Exec(p.ctx, queryFull)
@@ -184,7 +203,9 @@ SELECT c_idx_child.relname
 			return fmt.Errorf("failed to find the child index for the new partition: %w", err)
 		}
 
-		queryAlter := fmt.Sprintf("ALTER TABLE %s.%s REPLICA IDENTITY USING INDEX %s", schema, table, indexName)
+		queryAlter := fmt.Sprintf("ALTER TABLE %s REPLICA IDENTITY USING INDEX %s",
+			pgx.Identifier{schema, table}.Sanitize(),
+			pgx.Identifier{indexName}.Sanitize())
 		p.logger.Debug("Set replica identity", "schema", schema, "table", table, "index", indexName, "query", queryAlter)
 
 		_, err := p.conn.Exec(p.ctx, queryAlter)

@@ -1,9 +1,15 @@
 package postgresql
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/jackc/pgx/v5"
+)
 
 func (p Postgres) CreateTableLikeTable(schema, table, parent string) error {
-	query := fmt.Sprintf("CREATE TABLE %s.%s (LIKE %s.%s INCLUDING ALL)", schema, table, schema, parent)
+	query := fmt.Sprintf("CREATE TABLE %s (LIKE %s INCLUDING ALL)",
+		pgx.Identifier{schema, table}.Sanitize(),
+		pgx.Identifier{schema, parent}.Sanitize())
 	p.logger.Debug("Create table", "schema", schema, "table", table, "query", query)
 
 	_, err := p.conn.Exec(p.ctx, query)
