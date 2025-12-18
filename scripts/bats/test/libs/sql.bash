@@ -38,14 +38,14 @@ EOSQL
 
 list_existing_partitions() {
   # mandatory arguments
-  local PARENT_SCHEMA=$1
-  local PARENT_TABLE=$2
+  local PARENT_SCHEMA="$1"
+  local PARENT_TABLE="$2"
 
-  psql --tuples-only --no-align --quiet --dbname="$PPM_DATABASE" -v parent_schema=${PARENT_SCHEMA} -v parent_table=${PARENT_TABLE} <<'EOSQL'
+  psql --tuples-only --no-align --quiet --dbname="$PPM_DATABASE" -v parent_schema="${PARENT_SCHEMA}" -v parent_table="${PARENT_TABLE}" <<'EOSQL'
 WITH parts as (
 	SELECT
 	   relnamespace::regnamespace as schema,
-	   c.oid::pg_catalog.regclass AS part_name,
+	   c.relname AS part_name,
 	   regexp_match(pg_get_expr(c.relpartbound, c.oid),
 				  'FOR VALUES FROM \(''(.*)''\) TO \(''(.*)''\)') AS bounds
 	 FROM

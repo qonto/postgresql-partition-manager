@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v3"
 	"github.com/stretchr/testify/assert"
 )
@@ -14,7 +15,9 @@ func TestCreateTableLikeTable(t *testing.T) {
 	table := "my_table"
 	parentTable := "parent_table"
 
-	query := fmt.Sprintf(`CREATE TABLE %s.%s (LIKE %s.%s INCLUDING ALL)`, schema, table, schema, parentTable)
+	query := fmt.Sprintf("CREATE TABLE %s (LIKE %s INCLUDING ALL)",
+		pgx.Identifier{schema, table}.Sanitize(),
+		pgx.Identifier{schema, parentTable}.Sanitize())
 
 	mock, p := setupMock(t, pgxmock.QueryMatcherEqual)
 
