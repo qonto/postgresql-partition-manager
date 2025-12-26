@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-region: us-east-1  # ECR Public can only be logged into from the us-east-1 region
           role-to-assume: arn:aws:iam::202662887508:role/ecr-postgresql-partition-manager
@@ -50,7 +50,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure AWS credentials for helm chart
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-region: us-east-1  # ECR Public can only be logged into from the us-east-1 region
           role-to-assume: arn:aws:iam::202662887508:role/ecr-postgresql-partition-manager-chart
