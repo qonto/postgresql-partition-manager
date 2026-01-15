@@ -45,6 +45,8 @@ jobs:
           - postgres:14
           - postgres:15
           - postgres:16
+          - postgres:17
+          - postgres:18
     runs-on: ubuntu-latest
     env:
       BATS_LIB_PATH: "${{ github.workspace }}/test/bats/lib/"
