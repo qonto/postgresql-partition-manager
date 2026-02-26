@@ -78,7 +78,7 @@ func (p Postgres) FinalizePartitionDetach(schema, table, parent string) error {
 	query := fmt.Sprintf(`ALTER TABLE %s DETACH PARTITION %s FINALIZE`,
 		pgx.Identifier{schema, parent}.Sanitize(),
 		pgx.Identifier{schema, table}.Sanitize())
-	p.logger.Debug("finialize detach partition", "schema", schema, "table", table, "query", query, "parent_table", parent)
+	p.logger.Debug("finalize detach partition", "schema", schema, "table", table, "query", query, "parent_table", parent)
 
 	_, err := p.conn.Exec(p.ctx, query)
 	if err != nil {
@@ -141,7 +141,6 @@ func (p Postgres) GetPartitionSettings(schema, table string) (strategy, key stri
 		        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 		        WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind='p')) as partkeydef
 	`
-
 	err = p.conn.QueryRow(p.ctx, query, schema, table).Scan(&partkeydef)
 	if err != nil {
 		p.logger.Warn("failed to get partitioning key", "error", err, "schema", schema, "table", table)
