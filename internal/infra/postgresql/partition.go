@@ -141,8 +141,7 @@ func (p Postgres) GetPartitionSettings(schema, table string) (strategy, key stri
 		        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 		        WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind='p')) as partkeydef
 	`
-	err = p.conn.QueryRow(p.ctx, query, schema, table).Scan(&partkeydef)
-	if err != nil {
+	if err = p.conn.QueryRow(p.ctx, query, schema, table).Scan(&partkeydef); err != nil {
 		p.logger.Warn("failed to get partitioning key", "error", err, "schema", schema, "table", table)
 
 		return "", "", fmt.Errorf("failed to get partition key: %w", err)

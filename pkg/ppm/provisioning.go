@@ -20,6 +20,8 @@ func (p PPM) ProvisioningPartitions() error {
 		p.logger.Info("Provisioning partition", "partition", name)
 
 		if err := p.provisionPartitionsFor(config, p.workDate); err != nil {
+			p.logger.Error("Failed to provision partitions", "error", err, "schema", config.Schema, "table", config.Table)
+
 			provisioningFailed = true
 		}
 	}
