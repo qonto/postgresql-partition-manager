@@ -20,6 +20,8 @@ func (p PPM) ProvisioningPartitions() error {
 		p.logger.Info("Provisioning partition", "partition", name)
 
 		if err := p.provisionPartitionsFor(config, p.workDate); err != nil {
+			p.logger.Error("Failed to provision partitions", "error", err, "schema", config.Schema, "table", config.Table)
+
 			provisioningFailed = true
 		}
 	}
@@ -104,6 +106,16 @@ func (p PPM) provisionPartitionsFor(config partition.Configuration, at time.Time
 func (p PPM) CreatePartition(partitionConfiguration partition.Configuration, partition partition.Partition) error {
 	p.logger.Debug("Creating partition", "schema", partition.Schema, "table", partition.Name)
 
+	_, partitionKey, err := p.db.GetPartitionSettings(partition.Schema, partition.ParentTable)
+	if err != nil {
+		return fmt.Errorf("failed to get partition settings: %w", err)
+	}
+
+	partitionKeyType, err := p.db.GetColumnDataType(partition.Schema, partition.ParentTable, partitionKey)
+	if err != nil {
+		return fmt.Errorf("failed to get partition key details: %w", err)
+	}
+
 	tableExists, err := p.db.IsTableExists(partition.Schema, partition.Name)
 	if err != nil {
 		return fmt.Errorf("failed to check if table exists: %w", err)
@@ -129,16 +141,6 @@ func (p PPM) CreatePartition(partitionConfiguration partition.Configuration, par
 		p.logger.Info("Table is already attached to the parent table, skip", "schema", partition.Schema, "table", partition.Name)
 
 		return nil
-	}
-
-	_, partitionKey, err := p.db.GetPartitionSettings(partition.Schema, partition.ParentTable)
-	if err != nil {
-		return fmt.Errorf("failed to get partition settings: %w", err)
-	}
-
-	partitionKeyType, err := p.db.GetColumnDataType(partition.Schema, partition.ParentTable, partitionKey)
-	if err != nil {
-		return fmt.Errorf("failed to get partition settings: %w", err)
 	}
 
 	var lowerBound, upperBound string
