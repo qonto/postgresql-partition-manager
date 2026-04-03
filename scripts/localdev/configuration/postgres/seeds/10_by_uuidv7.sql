@@ -4,7 +4,7 @@ CREATE OR REPLACE FUNCTION min_uuid_v7(min_timestamp timestamp) RETURNS uuid
 LANGUAGE sql immutable strict
 AS $function$
   SELECT encode(
-      overlay('\x00000000000070000000000000000000'::bytea
+      overlay('\x00000000000070008000000000000000'::bytea
           placing substring(int8send(floor(extract(epoch from min_timestamp) * 1000)::bigint) from 3)
           from 1 for 6)
       , 'hex')::uuid;
