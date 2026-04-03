@@ -22,3 +22,4 @@ CREATE TABLE by_uuidv7_2002 PARTITION OF by_uuidv7 FOR VALUES FROM (min_uuid_v7(
 INSERT INTO by_uuidv7 values (min_uuid_v7('2000-01-01'), floor(RANDOM()*100));
 INSERT INTO by_uuidv7 values (min_uuid_v7('2001-01-01'), floor(RANDOM()*100));
 INSERT INTO by_uuidv7 values (min_uuid_v7('2002-01-01'), floor(RANDOM()*100));
+
