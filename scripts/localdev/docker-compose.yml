@@ -1,13 +1,11 @@
 ---
-version: '3.1'
-
 volumes:
   postgresql_data: {}
 
 services:
 
   postgres:
-    image: postgres:${POSTGRESQL_VERSION:-16}
+    image: postgres:${POSTGRESQL_VERSION:-18}
     environment:
       POSTGRES_PASSWORD: hackme
     read_only: true
@@ -16,7 +14,7 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - ./.data/postgres:/var/lib/postgresql/data
+      - ./.data/postgres:/var/lib/postgresql
       - ./configuration/postgres/seeds:/docker-entrypoint-initdb.d
     command: "postgres -c log_statement=all -c log_line_prefix='%t:%r:user=%u,database=%d,app=%a,query_id=%Q:[%p]:'"
     tmpfs:
@@ -24,7 +22,8 @@ services:
 
   bats:
     build:
-      context: configuration/bats
+      context: ../../
+      dockerfile: scripts/localdev/configuration/bats/Dockerfile
     environment:
       PGHOST: postgres
       PGUSER: postgres
@@ -33,5 +32,4 @@ services:
     command:
       - /code
     volumes:
-      - ../../postgresql-partition-manager:/usr/local/bin/postgresql-partition-manager
       - ../bats:/code
