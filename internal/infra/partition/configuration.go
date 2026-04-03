@@ -127,7 +127,9 @@ func (p Configuration) getPrevDate(forDate time.Time, i int) (t time.Time, err e
 
 		t = time.Date(year, month-time.Month(i), 1, 0, 0, 0, 0, forDate.Location())
 	case Quarterly:
-		t = forDate.AddDate(0, -i*nbMonthsInAQuarter, 0)
+		year, month, _ := forDate.Date()
+		quarterStartMonth := (month-1)/3*3 + 1
+		t = time.Date(year, quarterStartMonth-time.Month(i*nbMonthsInAQuarter), 1, 0, 0, 0, 0, forDate.Location())
 	case Yearly:
 		year, _, _ := forDate.Date()
 
@@ -150,7 +152,9 @@ func (p Configuration) getNextDate(forDate time.Time, i int) (t time.Time, err e
 
 		t = time.Date(year, month+time.Month(i), 1, 0, 0, 0, 0, forDate.Location())
 	case Quarterly:
-		t = forDate.AddDate(0, i*nbMonthsInAQuarter, 0)
+		year, month, _ := forDate.Date()
+		quarterStartMonth := (month-1)/3*3 + 1
+		t = time.Date(year, quarterStartMonth+time.Month(i*nbMonthsInAQuarter), 1, 0, 0, 0, 0, forDate.Location())
 	case Yearly:
 		year, _, _ := forDate.Date()
 
