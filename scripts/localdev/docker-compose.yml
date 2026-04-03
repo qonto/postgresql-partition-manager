@@ -22,7 +22,8 @@ services:
 
   bats:
     build:
-      context: configuration/bats
+      context: ../../
+      dockerfile: scripts/localdev/configuration/bats/Dockerfile
     environment:
       PGHOST: postgres
       PGUSER: postgres
@@ -31,5 +32,4 @@ services:
     command:
       - /code
     volumes:
-      - ../../postgresql-partition-manager:/usr/local/bin/postgresql-partition-manager
       - ../bats:/code
