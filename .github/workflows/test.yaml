@@ -202,7 +202,7 @@ jobs:
       - uses: jwalton/gh-find-current-pr@v1
         id: finder
       - name: Add Coverage PR Comment
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           number: ${{ steps.finder.outputs.pr }}
           path: code-coverage-results.md
