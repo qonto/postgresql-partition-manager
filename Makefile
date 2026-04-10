@@ -84,6 +84,8 @@ test:
 
 .PHONY: lint
 lint:
+	golangci-lint config verify
+	golangci-lint cache clean
 	golangci-lint run --verbose --timeout 2m
 
 .PHONY: all-tests
