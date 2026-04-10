@@ -1,4 +1,4 @@
-//nolint:golint,wsl_v5
+//nolint:wsl_v5
 package postgresql_test
 
 import (
