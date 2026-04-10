@@ -37,8 +37,6 @@ func TestCleanupPartitions(t *testing.T) {
 	dropPartitionConfiguration := OneDayPartitionConfiguration
 	OneDayPartitionConfiguration.CleanupPolicy = "drop"
 
-	boundDateFormat := "2006-01-02"
-
 	testCases := []struct {
 		name                      string
 		partitions                map[string]partition.Configuration
@@ -115,8 +113,6 @@ func TestCleanupPartitionsFailover(t *testing.T) {
 		"pendingFinalize": pendingFinalizePartitionConfiguration,
 		"success":         successPartitionConfiguration,
 	}
-
-	boundDateFormat := "2006-01-02"
 
 	logger, postgreSQLMock := setupMocks(t)
 

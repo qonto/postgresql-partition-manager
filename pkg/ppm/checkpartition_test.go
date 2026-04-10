@@ -38,7 +38,6 @@ func setupMocks(t *testing.T) (*slog.Logger, *mocks.PostgreSQLClient) {
 
 func TestCheckPartitions(t *testing.T) {
 	logger, postgreSQLMock := setupMocks(t)
-	boundDateFormat := "2006-01-02" //nolint:goconst
 
 	partitions := map[string]partition.Configuration{}
 	partitions["daily partition"] = partition.Configuration{Schema: "app", Table: "daily_table1", PartitionKey: "column", Interval: partition.Daily, Retention: 2, PreProvisioned: 2}
@@ -112,7 +111,6 @@ func TestCheckPartitions(t *testing.T) {
 
 func TestCheckMissingPartitions(t *testing.T) {
 	logger, postgreSQLMock := setupMocks(t)
-	boundDateFormat := "2006-01-02"
 
 	config := partition.Configuration{
 		Schema:         "public",

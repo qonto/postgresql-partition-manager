@@ -7,6 +7,8 @@ import (
 	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
 )
 
+const boundDateFormat = "2006-01-02"
+
 func partitionResultToPartition(t *testing.T, partitions []partition.Partition, dateFormat string) (result []postgresql.PartitionResult) {
 	t.Helper()
 
