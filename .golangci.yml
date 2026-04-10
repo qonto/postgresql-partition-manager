@@ -46,7 +46,6 @@ linters:
     - revive
     - rowserrcheck
     - sqlclosecheck
-    #- stylecheck
     - testpackage
     - thelper
     - tparallel
