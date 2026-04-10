@@ -68,17 +68,6 @@ linters:
     lll:
       line-length: 120
 
-  exclusions:
-    warn-unused: true
-    rules:
-      # Exclude some linters from running on test files
-      - path: _test\.go
-        linters:
-          # bodyclose reports some false-positives when using a test request recorder
-          - bodyclose
-          # It's overkill to use `NewRequestWithContext` in tests
-          - noctx
-
 formatters:
   enable:
     - gofmt
