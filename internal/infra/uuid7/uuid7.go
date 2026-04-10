@@ -27,7 +27,7 @@ func FromTime(timestamp time.Time) string {
 
 	// Bytes 0-5: 48-bit unix_ts_ms (big-endian)
 	ts := make([]byte, 8)
-	binary.BigEndian.PutUint64(ts, uint64(unixMillis)) //nolint:gosec
+	binary.BigEndian.PutUint64(ts, uint64(unixMillis))
 	copy(buf[0:6], ts[2:])
 
 	// Byte 6: upper nibble = version 0b0111, lower nibble = rand_a[0:3] (zero)

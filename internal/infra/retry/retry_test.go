@@ -41,7 +41,6 @@ func TestWithRetry(t *testing.T) {
 		}
 
 		err := retry.WithRetry(maxRetries, operation)
-
 		if err == nil {
 			t.Fatalf("expected error, but got none")
 		}
