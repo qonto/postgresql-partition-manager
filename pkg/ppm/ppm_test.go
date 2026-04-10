@@ -9,7 +9,7 @@ import (
 
 const boundDateFormat = "2006-01-02"
 
-func partitionResultToPartition(t *testing.T, partitions []partition.Partition, dateFormat string) (result []postgresql.PartitionResult) {
+func partitionResultToPartition(t *testing.T, partitions []partition.Partition) (result []postgresql.PartitionResult) {
 	t.Helper()
 
 	for _, p := range partitions {
@@ -17,8 +17,8 @@ func partitionResultToPartition(t *testing.T, partitions []partition.Partition, 
 			ParentTable: p.ParentTable,
 			Schema:      p.Schema,
 			Name:        p.Name,
-			LowerBound:  p.LowerBound.Format(dateFormat),
-			UpperBound:  p.UpperBound.Format(dateFormat),
+			LowerBound:  p.LowerBound.Format(boundDateFormat),
+			UpperBound:  p.UpperBound.Format(boundDateFormat),
 		})
 	}
 

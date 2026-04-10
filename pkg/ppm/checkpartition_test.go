@@ -101,7 +101,7 @@ func TestCheckPartitions(t *testing.T) {
 
 		postgreSQLMock.On("GetPartitionSettings", p.Schema, p.Table).Return(string(partition.Range), p.PartitionKey, nil).Once()
 
-		convertedTables := partitionResultToPartition(t, tables, boundDateFormat)
+		convertedTables := partitionResultToPartition(t, tables)
 		postgreSQLMock.On("ListPartitions", p.Schema, p.Table).Return(convertedTables, nil).Once()
 	}
 
@@ -158,7 +158,7 @@ func TestCheckMissingPartitions(t *testing.T) {
 			postgreSQLMock.On("GetPartitionSettings", config.Schema, config.Table).Return(string(partition.Range), config.PartitionKey, nil).Once()
 			postgreSQLMock.On("GetColumnDataType", config.Schema, config.Table, config.PartitionKey).Return(postgresql.Date, nil).Once()
 
-			tables := partitionResultToPartition(t, tc.tables, boundDateFormat)
+			tables := partitionResultToPartition(t, tc.tables)
 			postgreSQLMock.On("ListPartitions", config.Schema, config.Table).Return(tables, nil).Once()
 
 			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, map[string]partition.Configuration{"test": config}, time.Now())
