@@ -168,7 +168,8 @@ func (p Postgres) SetPartitionReplicaIdentity(schema, table, parent string) erro
 		return fmt.Errorf("failed to check pg_class.relreplident for parent table: %w", err)
 	}
 
-	if replIdent == "f" { // replica identity = full
+	switch replIdent {
+	case "f": // replica identity = full
 		queryFull := fmt.Sprintf("ALTER TABLE %s REPLICA IDENTITY FULL",
 			pgx.Identifier{schema, table}.Sanitize())
 		p.logger.Debug("Set identity full", "query", queryFull)
@@ -177,7 +178,7 @@ func (p Postgres) SetPartitionReplicaIdentity(schema, table, parent string) erro
 		if err != nil {
 			return fmt.Errorf("failed to set replica identity: %w", err)
 		}
-	} else if replIdent == "i" { // replica identity = specific index
+	case "i": // replica identity = specific index
 		var indexName string
 		/* This query finds the index that is a child of the (only) index
 		   in the parent table having "indisreplident"=true.

@@ -1,4 +1,4 @@
-//nolint:golint,wsl
+//nolint:wsl_v5
 package postgresql_test
 
 import (
@@ -10,10 +10,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	testSchema      = "public"
+	testTable       = "my_table"
+	testParentTable = "parent_table"
+)
+
 func TestCreateTableLikeTable(t *testing.T) {
-	schema := "public"
-	table := "my_table"
-	parentTable := "parent_table"
+	schema := testSchema
+	table := testTable
+	parentTable := testParentTable
 
 	query := fmt.Sprintf("CREATE TABLE %s (LIKE %s INCLUDING ALL)",
 		pgx.Identifier{schema, table}.Sanitize(),
@@ -31,8 +37,8 @@ func TestCreateTableLikeTable(t *testing.T) {
 }
 
 func TestDropTable(t *testing.T) {
-	schema := "public"
-	table := "my_table"
+	schema := testSchema
+	table := testTable
 	fullQualifiedName := fmt.Sprintf("%s.%s", schema, table)
 	query := fmt.Sprintf(`DROP TABLE %s`, fullQualifiedName)
 
@@ -48,8 +54,8 @@ func TestDropTable(t *testing.T) {
 }
 
 func TestIsTableExists(t *testing.T) {
-	schema := "public"
-	table := "my_table"
+	schema := testSchema
+	table := testTable
 
 	query := "SELECT EXISTS"
 

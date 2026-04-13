@@ -37,8 +37,6 @@ func TestCleanupPartitions(t *testing.T) {
 	dropPartitionConfiguration := OneDayPartitionConfiguration
 	OneDayPartitionConfiguration.CleanupPolicy = "drop"
 
-	boundDateFormat := "2006-01-02"
-
 	testCases := []struct {
 		name                      string
 		partitions                map[string]partition.Configuration
@@ -76,7 +74,7 @@ func TestCleanupPartitions(t *testing.T) {
 			logger, postgreSQLMock := setupMocks(t) // Reset mock on every test case
 
 			for _, partitionConfiguration := range tc.partitions {
-				postgreSQLMock.On("ListPartitions", partitionConfiguration.Schema, partitionConfiguration.Table).Return(partitionResultToPartition(t, tc.existingPartitions, boundDateFormat), nil).Once()
+				postgreSQLMock.On("ListPartitions", partitionConfiguration.Schema, partitionConfiguration.Table).Return(partitionResultToPartition(t, tc.existingPartitions), nil).Once()
 
 				for _, p := range tc.expectedRemovedPartitions {
 					postgreSQLMock.On("DetachPartitionConcurrently", p.Schema, p.Name, p.ParentTable).Return(nil).Once()
@@ -116,8 +114,6 @@ func TestCleanupPartitionsFailover(t *testing.T) {
 		"success":         successPartitionConfiguration,
 	}
 
-	boundDateFormat := "2006-01-02"
-
 	logger, postgreSQLMock := setupMocks(t)
 
 	for _, config := range configuration {
@@ -133,7 +129,7 @@ func TestCleanupPartitionsFailover(t *testing.T) {
 			tomorrowPartitionPartition,
 		}
 
-		postgreSQLMock.On("ListPartitions", config.Schema, config.Table).Return(partitionResultToPartition(t, partitions, boundDateFormat), nil).Once()
+		postgreSQLMock.On("ListPartitions", config.Schema, config.Table).Return(partitionResultToPartition(t, partitions), nil).Once()
 	}
 
 	// Undetachable partition will return an error on detach operation

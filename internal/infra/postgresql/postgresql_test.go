@@ -22,7 +22,7 @@ func setupMock(t *testing.T, queryMatcher pgxmock.QueryMatcher) (pgxmock.PgxConn
 		t.Fatalf("ERROR: Fail to initialize PostgreSQL mock: %s", err)
 	}
 
-	defer mock.Close(context.TODO()) //nolint:golint,errcheck
+	defer mock.Close(context.TODO()) //nolint:errcheck
 
 	logger, err := logger.New(false, "text")
 	if err != nil {

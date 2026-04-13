@@ -38,7 +38,6 @@ func setupMocks(t *testing.T) (*slog.Logger, *mocks.PostgreSQLClient) {
 
 func TestCheckPartitions(t *testing.T) {
 	logger, postgreSQLMock := setupMocks(t)
-	boundDateFormat := "2006-01-02" //nolint:goconst
 
 	partitions := map[string]partition.Configuration{}
 	partitions["daily partition"] = partition.Configuration{Schema: "app", Table: "daily_table1", PartitionKey: "column", Interval: partition.Daily, Retention: 2, PreProvisioned: 2}
@@ -52,7 +51,6 @@ func TestCheckPartitions(t *testing.T) {
 	// Build mock for each partitions
 	for _, p := range partitions {
 		var (
-			tables               []partition.Partition
 			retentionTables      []partition.Partition
 			preprovisionedTables []partition.Partition
 		)
@@ -75,11 +73,8 @@ func TestCheckPartitions(t *testing.T) {
 			t.Errorf("unuspported partition interval in retention table mock")
 		}
 
-		tables = append(tables, retentionTables...)
-
 		// Create current partition
 		currentPartition, _ := p.GeneratePartition(forDate)
-		tables = append(tables, currentPartition)
 
 		// Create preprovisioned partitions
 		switch p.Interval {
@@ -97,13 +92,16 @@ func TestCheckPartitions(t *testing.T) {
 			t.Errorf("unuspported partition interval in preprovisonned table mock")
 		}
 
+		tables := make([]partition.Partition, 0, len(retentionTables)+1+len(preprovisionedTables))
+		tables = append(tables, retentionTables...)
+		tables = append(tables, currentPartition)
 		tables = append(tables, preprovisionedTables...)
 
 		postgreSQLMock.On("GetColumnDataType", p.Schema, p.Table, p.PartitionKey).Return(postgresql.Date, nil).Once()
 
 		postgreSQLMock.On("GetPartitionSettings", p.Schema, p.Table).Return(string(partition.Range), p.PartitionKey, nil).Once()
 
-		convertedTables := partitionResultToPartition(t, tables, boundDateFormat)
+		convertedTables := partitionResultToPartition(t, tables)
 		postgreSQLMock.On("ListPartitions", p.Schema, p.Table).Return(convertedTables, nil).Once()
 	}
 
@@ -113,7 +111,6 @@ func TestCheckPartitions(t *testing.T) {
 
 func TestCheckMissingPartitions(t *testing.T) {
 	logger, postgreSQLMock := setupMocks(t)
-	boundDateFormat := "2006-01-02"
 
 	config := partition.Configuration{
 		Schema:         "public",
@@ -161,7 +158,7 @@ func TestCheckMissingPartitions(t *testing.T) {
 			postgreSQLMock.On("GetPartitionSettings", config.Schema, config.Table).Return(string(partition.Range), config.PartitionKey, nil).Once()
 			postgreSQLMock.On("GetColumnDataType", config.Schema, config.Table, config.PartitionKey).Return(postgresql.Date, nil).Once()
 
-			tables := partitionResultToPartition(t, tc.tables, boundDateFormat)
+			tables := partitionResultToPartition(t, tc.tables)
 			postgreSQLMock.On("ListPartitions", config.Schema, config.Table).Return(tables, nil).Once()
 
 			checker := ppm.New(context.TODO(), *logger, postgreSQLMock, map[string]partition.Configuration{"test": config}, time.Now())

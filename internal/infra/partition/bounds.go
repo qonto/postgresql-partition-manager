@@ -58,7 +58,7 @@ func (r PartitionRange) IsEqual(r2 PartitionRange) bool {
 func (r PartitionRange) Intersection(r2 PartitionRange) PartitionRange {
 	var res PartitionRange // initialized with {time.Time{}, time.Time{}}
 
-	if !(r2.LowerBound.After(r.UpperBound) || r.LowerBound.After(r2.UpperBound)) { // !empty intersection
+	if !r2.LowerBound.After(r.UpperBound) && !r.LowerBound.After(r2.UpperBound) { // !empty intersection
 		if r.LowerBound.After(r2.LowerBound) {
 			res.LowerBound = r.LowerBound
 		} else {

@@ -1,26 +1,19 @@
 ---
+version: "2"
+
 run:
   concurrency: 4
   timeout: 2m
   issues-exit-code: 1
   tests: true
 
-output:
-  formats:
-    - format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
-
 linters:
-  enable-all: false
-  disable-all: false
+  default: none
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - typecheck
     - unused
     - asciicheck
     - bodyclose
@@ -35,9 +28,6 @@ linters:
     - gocyclo
     - godox
     - err113
-    - gofmt
-    - gofumpt
-    - goimports
     - mnd
     - gomodguard
     - goprintffuncname
@@ -56,7 +46,6 @@ linters:
     - revive
     - rowserrcheck
     - sqlclosecheck
-    - stylecheck
     - testpackage
     - thelper
     - tparallel
@@ -65,30 +54,22 @@ linters:
     - wastedassign
     - whitespace
     - wrapcheck
-    - wsl
+    - wsl_v5
 
-linters-settings:
-  gocyclo:
-    min-complexity: 35
+  settings:
+    gocyclo:
+      min-complexity: 35
 
-  revive:
-    rules:
-      - name: exported
-        disabled: true
+    revive:
+      rules:
+        - name: exported
+          disabled: true
 
-  lll:
-    line-length: 120
+    lll:
+      line-length: 120
 
-issues:
-  exclude-use-default: false
-  max-issues-per-linter: 1024
-  max-same-issues: 1024
-
-  exclude-rules:
-    # Exclude some linters from running on test files
-    - path: _test\.go
-      linters:
-        # bodyclose reports some false-positives when using a test request recorder
-        - bodyclose
-        # It's overkill to use `NewRequestWithContext` in tests
-        - noctx
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
