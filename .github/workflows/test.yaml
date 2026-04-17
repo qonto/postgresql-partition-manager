@@ -129,7 +129,7 @@ jobs:
           go-version: stable
       - name: Set up QEMU for ARM64 build
         uses: docker/setup-qemu-action@v4
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: latest
