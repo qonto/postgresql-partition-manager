@@ -17,6 +17,11 @@ services:
       - ./.data/postgres:/var/lib/postgresql
       - ./configuration/postgres/seeds:/docker-entrypoint-initdb.d
     command: "postgres -c log_statement=all -c log_line_prefix='%t:%r:user=%u,database=%d,app=%a,query_id=%Q:[%p]:'"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
     tmpfs:
       - /var/run
 
@@ -24,6 +29,9 @@ services:
     build:
       context: ../../
       dockerfile: scripts/localdev/configuration/bats/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       PGHOST: postgres
       PGUSER: postgres
