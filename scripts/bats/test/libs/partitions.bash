@@ -1,3 +1,19 @@
+# Portable date formatting from epoch timestamp
+# Usage: format_epoch EPOCH FORMAT
+# Works on both GNU/Linux (date -d) and macOS/BSD (date -r)
+format_epoch() {
+  local epoch=$1
+  local fmt=$2
+
+  if date -d "@0" +"%Y" >/dev/null 2>&1; then
+    # GNU date
+    date -d "@${epoch}" +"${fmt}"
+  else
+    # BSD/macOS date
+    date -r "${epoch}" +"${fmt}"
+  fi
+}
+
 create_partitioned_table() {
   create_table_from_template "$1"
 }
@@ -37,8 +53,8 @@ generate_daily_partition() {
   local TIMEDELTA=$2
 
   local TABLE_NAME=$(generate_daily_partition_name "${PARENT_TABLE}" "${TIMEDELTA}")
-  local LOWER_BOUND=$(date -d "@$(( $(date +%s) + 86400 * $TIMEDELTA))" +"%Y-%m-%d")
-  local UPPER_BOUND=$(date -d "@$(( $(date +%s) + 86400 * $TIMEDELTA + 86400))" +"%Y-%m-%d")
+  local LOWER_BOUND=$(format_epoch "$(( $(date +%s) + 86400 * $TIMEDELTA))" "%Y-%m-%d")
+  local UPPER_BOUND=$(format_epoch "$(( $(date +%s) + 86400 * $TIMEDELTA + 86400))" "%Y-%m-%d")
 
   local QUERY="CREATE TABLE ${TABLE_NAME} PARTITION OF ${PARENT_TABLE} FOR VALUES FROM ('${LOWER_BOUND}') TO ('${UPPER_BOUND}');"
   execute_sql "${QUERY}" "$PPM_DATABASE"
@@ -48,7 +64,7 @@ generate_daily_partition_name() {
   local PARENT_TABLE=$1
   local TIMEDELTA=$2
 
-  echo $(date -d "@$(( $(date +%s) + 86400 * $TIMEDELTA))" +"${PARENT_TABLE}_%Y_%m_%d")
+  echo $(format_epoch "$(( $(date +%s) + 86400 * $TIMEDELTA))" "${PARENT_TABLE}_%Y_%m_%d")
 }
 
 generate_table_name() {
