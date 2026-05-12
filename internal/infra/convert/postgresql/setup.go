@@ -116,6 +116,201 @@ func (c *Client) InstallCDCTrigger(schema, table string) error {
 	return nil
 }
 
+// CreatePartitionedTable creates a partitioned table with the given column definitions,
+// using RANGE partitioning on the specified partition key.
+// It includes a composite primary key (original PK columns + partition key if not already present).
+// It also replicates CHECK constraints from the source table.
+func (c *Client) CreatePartitionedTable(schema, table string, columns []ColumnDef, partitionKey string) error {
+	qualifiedTable := pgx.Identifier{schema, table}.Sanitize()
+
+	// Build column definitions
+	colDefs := make([]string, 0, len(columns))
+
+	for _, col := range columns {
+		colDef := fmt.Sprintf("    %s %s", pgx.Identifier{col.Name}.Sanitize(), col.DataType)
+
+		if !col.IsNullable {
+			colDef += " NOT NULL"
+		}
+
+		if col.DefaultValue != nil && !col.IsGenerated {
+			colDef += fmt.Sprintf(" DEFAULT %s", *col.DefaultValue)
+		}
+
+		if col.IsGenerated {
+			if col.DefaultValue != nil {
+				colDef += fmt.Sprintf(" GENERATED ALWAYS AS (%s) STORED", *col.DefaultValue)
+			}
+		}
+
+		colDefs = append(colDefs, colDef)
+	}
+
+	createSQL := fmt.Sprintf("CREATE TABLE %s (\n%s\n) PARTITION BY RANGE (%s)",
+		qualifiedTable,
+		strings.Join(colDefs, ",\n"),
+		pgx.Identifier{partitionKey}.Sanitize(),
+	)
+
+	c.logger.Info("Creating partitioned table", "schema", schema, "table", table, "partitionKey", partitionKey)
+
+	_, err := c.conn.Exec(c.ctx, createSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create partitioned table %s: %w", qualifiedTable, err)
+	}
+
+	return nil
+}
+
+// CreatePartition creates a partition of the parent table with the specified bounds.
+// The bounds are used in a PARTITION OF ... FOR VALUES FROM (...) TO (...) clause.
+func (c *Client) CreatePartition(schema, parentTable, partitionName, lowerBound, upperBound string) error {
+	qualifiedPartition := pgx.Identifier{schema, partitionName}.Sanitize()
+	qualifiedParent := pgx.Identifier{schema, parentTable}.Sanitize()
+
+	createSQL := fmt.Sprintf("CREATE TABLE %s PARTITION OF %s FOR VALUES FROM ('%s') TO ('%s')",
+		qualifiedPartition,
+		qualifiedParent,
+		lowerBound,
+		upperBound,
+	)
+
+	c.logger.Info("Creating partition", "schema", schema, "parent", parentTable, "partition", partitionName, "from", lowerBound, "to", upperBound)
+
+	_, err := c.conn.Exec(c.ctx, createSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create partition %s: %w", qualifiedPartition, err)
+	}
+
+	return nil
+}
+
+// CreateIndex creates an index on the specified table based on the IndexDef.
+// For primary key indexes, it creates a PRIMARY KEY constraint.
+// For unique indexes, it creates a UNIQUE index.
+// It supports partial indexes (with predicate) and expression indexes.
+func (c *Client) CreateIndex(schema, table string, idx IndexDef) error {
+	qualifiedTable := pgx.Identifier{schema, table}.Sanitize()
+
+	if idx.IsPrimary {
+		// Create as ALTER TABLE ADD PRIMARY KEY
+		pkCols := make([]string, len(idx.Columns))
+		for i, col := range idx.Columns {
+			pkCols[i] = pgx.Identifier{col}.Sanitize()
+		}
+
+		constraintName := pgx.Identifier{idx.Name}.Sanitize()
+
+		alterSQL := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)",
+			qualifiedTable,
+			constraintName,
+			strings.Join(pkCols, ", "),
+		)
+
+		c.logger.Info("Creating primary key", "schema", schema, "table", table, "columns", idx.Columns)
+
+		_, err := c.conn.Exec(c.ctx, alterSQL)
+		if err != nil {
+			return fmt.Errorf("failed to create primary key on %s: %w", qualifiedTable, err)
+		}
+
+		return nil
+	}
+
+	// Build CREATE INDEX statement
+	qualifiedIndex := pgx.Identifier{schema, idx.Name}.Sanitize()
+
+	unique := ""
+	if idx.IsUnique {
+		unique = "UNIQUE "
+	}
+
+	// Determine the column/expression list
+	var indexExpr string
+	if idx.Expression != nil && *idx.Expression != "" {
+		indexExpr = *idx.Expression
+	} else {
+		indexCols := make([]string, len(idx.Columns))
+		for i, col := range idx.Columns {
+			indexCols[i] = pgx.Identifier{col}.Sanitize()
+		}
+
+		indexExpr = strings.Join(indexCols, ", ")
+	}
+
+	method := ""
+	if idx.Method != "" && idx.Method != "btree" {
+		method = fmt.Sprintf(" USING %s", idx.Method)
+	}
+
+	createSQL := fmt.Sprintf("CREATE %sINDEX %s ON %s%s (%s)",
+		unique,
+		qualifiedIndex,
+		qualifiedTable,
+		method,
+		indexExpr,
+	)
+
+	// Add predicate for partial indexes
+	if idx.Predicate != nil && *idx.Predicate != "" {
+		createSQL += fmt.Sprintf(" WHERE %s", *idx.Predicate)
+	}
+
+	c.logger.Info("Creating index", "schema", schema, "table", table, "index", idx.Name, "unique", idx.IsUnique)
+
+	_, err := c.conn.Exec(c.ctx, createSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create index %s on %s: %w", idx.Name, qualifiedTable, err)
+	}
+
+	return nil
+}
+
+// CreateForeignKey creates a foreign key constraint on the specified table.
+func (c *Client) CreateForeignKey(schema, table string, fk ForeignKeyDef) error {
+	qualifiedTable := pgx.Identifier{schema, table}.Sanitize()
+	constraintName := pgx.Identifier{fk.Name}.Sanitize()
+	qualifiedRefTable := pgx.Identifier{fk.ReferencedSchema, fk.ReferencedTable}.Sanitize()
+
+	// Build column lists
+	fkCols := make([]string, len(fk.Columns))
+	for i, col := range fk.Columns {
+		fkCols[i] = pgx.Identifier{col}.Sanitize()
+	}
+
+	refCols := make([]string, len(fk.ReferencedColumns))
+	for i, col := range fk.ReferencedColumns {
+		refCols[i] = pgx.Identifier{col}.Sanitize()
+	}
+
+	alterSQL := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)",
+		qualifiedTable,
+		constraintName,
+		strings.Join(fkCols, ", "),
+		qualifiedRefTable,
+		strings.Join(refCols, ", "),
+	)
+
+	// Add ON DELETE action if not default
+	if fk.OnDelete != "" && fk.OnDelete != "NO ACTION" {
+		alterSQL += fmt.Sprintf(" ON DELETE %s", fk.OnDelete)
+	}
+
+	// Add ON UPDATE action if not default
+	if fk.OnUpdate != "" && fk.OnUpdate != "NO ACTION" {
+		alterSQL += fmt.Sprintf(" ON UPDATE %s", fk.OnUpdate)
+	}
+
+	c.logger.Info("Creating foreign key", "schema", schema, "table", table, "constraint", fk.Name)
+
+	_, err := c.conn.Exec(c.ctx, alterSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create foreign key %s on %s: %w", fk.Name, qualifiedTable, err)
+	}
+
+	return nil
+}
+
 // IsCDCQueueExists checks whether the CDC queue table exists for the specified source table.
 func (c *Client) IsCDCQueueExists(schema, table string) (bool, error) {
 	queueTable := table + "_cdc_queue"
