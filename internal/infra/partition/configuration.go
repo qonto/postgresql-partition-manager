@@ -22,6 +22,31 @@ type Configuration struct {
 	Retention      int           `mapstructure:"retention" validate:"required,gt=0"`
 	PreProvisioned int           `mapstructure:"preProvisioned" validate:"required,gt=0"`
 	CleanupPolicy  CleanupPolicy `mapstructure:"cleanupPolicy" validate:"required,oneof=drop detach"`
+
+	// Conversion-specific fields (optional, only used by convert commands)
+	BatchSize        int `mapstructure:"batchSize" validate:"omitempty,min=1,max=1000000"`
+	ReplayBatchSize  int `mapstructure:"replayBatchSize" validate:"omitempty,min=1,max=1000000"`
+	LockTimeout      int `mapstructure:"lockTimeout" validate:"omitempty,min=1,max=60"`
+	StatementTimeout int `mapstructure:"statementTimeout" validate:"omitempty,min=5,max=120"`
+}
+
+// ApplyConvertDefaults sets default values for conversion-specific fields.
+func (c *Configuration) ApplyConvertDefaults() {
+	if c.BatchSize == 0 {
+		c.BatchSize = 10000
+	}
+
+	if c.ReplayBatchSize == 0 {
+		c.ReplayBatchSize = 1000
+	}
+
+	if c.LockTimeout == 0 {
+		c.LockTimeout = 5
+	}
+
+	if c.StatementTimeout == 0 {
+		c.StatementTimeout = 30
+	}
 }
 
 func (p Configuration) GeneratePartition(forDate time.Time) (Partition, error) {
