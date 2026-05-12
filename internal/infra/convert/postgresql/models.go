@@ -2,7 +2,18 @@
 // table partition conversion feature.
 package postgresql
 
-import "time"
+import (
+	"time"
+
+	infra "github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
+)
+
+// Type aliases for schema introspection types defined in the parent postgresql package.
+// This allows the convert package to use these types without breaking existing references.
+type ColumnDef = infra.ColumnDef
+type IndexDef = infra.IndexDef
+type ForeignKeyDef = infra.ForeignKeyDef
+type CheckConstraintDef = infra.CheckConstraintDef
 
 // CDCEvent represents a single change data capture event from the CDC queue.
 type CDCEvent struct {
@@ -24,43 +35,6 @@ type MigrationState struct {
 	PhaseStartedAt     time.Time
 	UpdatedAt          time.Time
 	DroppedForeignKeys []ForeignKeyDef // FKs dropped pre-cutover, stored for recreation/rollback
-}
-
-// ColumnDef represents a column definition from the source table schema.
-type ColumnDef struct {
-	Name         string
-	DataType     string
-	IsNullable   bool
-	DefaultValue *string
-	IsGenerated  bool
-}
-
-// IndexDef represents an index definition from the source table.
-type IndexDef struct {
-	Name       string
-	Columns    []string
-	IsUnique   bool
-	IsPrimary  bool
-	Predicate  *string // For partial indexes
-	Expression *string // For expression indexes
-	Method     string  // btree, hash, gin, gist, etc.
-}
-
-// ForeignKeyDef represents a foreign key constraint definition.
-type ForeignKeyDef struct {
-	Name              string
-	Columns           []string
-	ReferencedSchema  string
-	ReferencedTable   string
-	ReferencedColumns []string
-	OnDelete          string
-	OnUpdate          string
-}
-
-// CheckConstraintDef represents a CHECK constraint definition.
-type CheckConstraintDef struct {
-	Name       string
-	Expression string
 }
 
 // VerifyResult contains the results of a convergence verification check.
