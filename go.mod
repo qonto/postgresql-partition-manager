@@ -12,6 +12,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	gotest.tools v2.2.0+incompatible
+	pgregory.net/rapid v1.3.0
 )
 
 require (
