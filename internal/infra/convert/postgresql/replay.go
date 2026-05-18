@@ -77,11 +77,14 @@ func (c *Client) DequeueEvents(schema, table string, batchSize int) ([]CDCEvent,
 // This implements the INSERT...ON CONFLICT DO UPDATE pattern described in the design.
 // By fetching the current state from the source, out-of-order events are handled correctly
 // since the target always reflects the latest source state.
+//
+// pkColumns are the source table's PK columns (used for the WHERE lookup on the source).
+// The ON CONFLICT clause uses the target table's actual PK (which may include the partition key).
 func (c *Client) ApplyUpsert(schema, targetTable, sourceTable string, pkColumns []string, pkValues []string) error {
 	qualifiedTarget := pgx.Identifier{schema, targetTable}.Sanitize()
 	qualifiedSource := pgx.Identifier{schema, sourceTable}.Sanitize()
 
-	// Build sanitized PK column identifiers
+	// Build sanitized PK column identifiers (source PK for WHERE lookup)
 	pkCols := make([]string, len(pkColumns))
 	for i, col := range pkColumns {
 		pkCols[i] = pgx.Identifier{col}.Sanitize()
@@ -116,16 +119,30 @@ func (c *Client) ApplyUpsert(schema, targetTable, sourceTable string, pkColumns 
 
 	colList := strings.Join(sanitizedCols, ", ")
 
-	// Build the DO UPDATE SET clause for non-PK columns
-	pkSet := make(map[string]bool, len(pkColumns))
-	for _, col := range pkColumns {
-		pkSet[col] = true
+	// Get the target table's PK columns for ON CONFLICT.
+	// The target table's PK may include the partition key (e.g., (id, created_at))
+	// which differs from the source PK (e.g., (id)).
+	targetPKColumns, err := c.getTargetPKColumns(schema, targetTable)
+	if err != nil || len(targetPKColumns) == 0 {
+		// Fallback to source PK columns if we can't determine target PK
+		targetPKColumns = pkColumns
+	}
+
+	targetPKCols := make([]string, len(targetPKColumns))
+	for i, col := range targetPKColumns {
+		targetPKCols[i] = pgx.Identifier{col}.Sanitize()
+	}
+
+	// Build the DO UPDATE SET clause for non-PK columns (using target PK for exclusion)
+	targetPKSet := make(map[string]bool, len(targetPKColumns))
+	for _, col := range targetPKColumns {
+		targetPKSet[col] = true
 	}
 
 	var updateParts []string
 
 	for _, col := range columns {
-		if !pkSet[col] {
+		if !targetPKSet[col] {
 			sanitized := pgx.Identifier{col}.Sanitize()
 			updateParts = append(updateParts, fmt.Sprintf("%s = EXCLUDED.%s", sanitized, sanitized))
 		}
@@ -146,7 +163,7 @@ func (c *Client) ApplyUpsert(schema, targetTable, sourceTable string, pkColumns 
 			colList,
 			qualifiedSource,
 			whereClause,
-			strings.Join(pkCols, ", "),
+			strings.Join(targetPKCols, ", "),
 			strings.Join(updateParts, ",\n\t\t\t\t"),
 		)
 	} else {
@@ -161,7 +178,7 @@ func (c *Client) ApplyUpsert(schema, targetTable, sourceTable string, pkColumns 
 			colList,
 			qualifiedSource,
 			whereClause,
-			strings.Join(pkCols, ", "),
+			strings.Join(targetPKCols, ", "),
 		)
 	}
 
@@ -178,6 +195,39 @@ func (c *Client) ApplyUpsert(schema, targetTable, sourceTable string, pkColumns 
 	}
 
 	return nil
+}
+
+// getTargetPKColumns retrieves the primary key columns of the target table.
+func (c *Client) getTargetPKColumns(schema, table string) ([]string, error) {
+	query := `
+		SELECT a.attname
+		FROM pg_index i
+		JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+		JOIN pg_class c ON c.oid = i.indrelid
+		JOIN pg_namespace n ON n.oid = c.relnamespace
+		WHERE i.indisprimary
+		  AND n.nspname = $1
+		  AND c.relname = $2
+		ORDER BY array_position(i.indkey, a.attnum)`
+
+	rows, err := c.conn.Query(c.ctx, query, schema, table)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get PK columns for %s.%s: %w", schema, table, err)
+	}
+	defer rows.Close()
+
+	var columns []string
+
+	for rows.Next() {
+		var col string
+		if err := rows.Scan(&col); err != nil {
+			return nil, fmt.Errorf("failed to scan PK column: %w", err)
+		}
+
+		columns = append(columns, col)
+	}
+
+	return columns, rows.Err()
 }
 
 // ApplyDelete removes a row from the target table by primary key values.

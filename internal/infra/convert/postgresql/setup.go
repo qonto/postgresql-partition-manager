@@ -17,7 +17,7 @@ func (c *Client) CreateCDCQueue(schema, table string, pkColumns []string) error 
 	queueTable := table + "_cdc_queue"
 	qualifiedQueue := pgx.Identifier{schema, queueTable}.Sanitize()
 	indexName := fmt.Sprintf("idx_%s_cdc_queue_seq", table)
-	qualifiedIndex := pgx.Identifier{schema, indexName}.Sanitize()
+	qualifiedIndex := pgx.Identifier{indexName}.Sanitize()
 
 	createSQL := fmt.Sprintf(`CREATE TABLE %s (
     seq_id    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -218,7 +218,7 @@ func (c *Client) CreateIndex(schema, table string, idx IndexDef) error {
 	}
 
 	// Build CREATE INDEX statement
-	qualifiedIndex := pgx.Identifier{schema, idx.Name}.Sanitize()
+	qualifiedIndex := pgx.Identifier{idx.Name}.Sanitize()
 
 	unique := ""
 	if idx.IsUnique {

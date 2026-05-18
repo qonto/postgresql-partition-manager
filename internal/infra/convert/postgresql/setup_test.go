@@ -19,7 +19,7 @@ func TestCreateCDCQueue(t *testing.T) {
 		mock.ExpectExec(`CREATE TABLE "public"\."events_cdc_queue"`).
 			WillReturnResult(pgxmock.NewResult("CREATE", 0))
 
-		mock.ExpectExec(`CREATE INDEX "public"\."idx_events_cdc_queue_seq" ON "public"\."events_cdc_queue"`).
+		mock.ExpectExec(`CREATE INDEX "idx_events_cdc_queue_seq" ON "public"\."events_cdc_queue"`).
 			WillReturnResult(pgxmock.NewResult("CREATE", 0))
 
 		err := client.CreateCDCQueue(schema, table, []string{"id"})
@@ -43,7 +43,7 @@ func TestCreateCDCQueue(t *testing.T) {
 		mock.ExpectExec(`CREATE TABLE "public"\."events_cdc_queue"`).
 			WillReturnResult(pgxmock.NewResult("CREATE", 0))
 
-		mock.ExpectExec(`CREATE INDEX "public"\."idx_events_cdc_queue_seq"`).
+		mock.ExpectExec(`CREATE INDEX "idx_events_cdc_queue_seq"`).
 			WillReturnError(ErrPostgreSQLConnectionFailure)
 
 		err := client.CreateCDCQueue(schema, table, []string{"id"})
@@ -57,7 +57,7 @@ func TestCreateCDCQueue(t *testing.T) {
 		mock.ExpectExec(`CREATE TABLE "my-schema"\."orders_cdc_queue"`).
 			WillReturnResult(pgxmock.NewResult("CREATE", 0))
 
-		mock.ExpectExec(`CREATE INDEX "my-schema"\."idx_orders_cdc_queue_seq" ON "my-schema"\."orders_cdc_queue"`).
+		mock.ExpectExec(`CREATE INDEX "idx_orders_cdc_queue_seq" ON "my-schema"\."orders_cdc_queue"`).
 			WillReturnResult(pgxmock.NewResult("CREATE", 0))
 
 		err := client.CreateCDCQueue("my-schema", "orders", []string{"order_id"})
@@ -341,7 +341,7 @@ func TestCreateIndex(t *testing.T) {
 	t.Run("creates regular btree index", func(t *testing.T) {
 		mock, client := setupConvertMock(t, pgxmock.QueryMatcherRegexp)
 
-		mock.ExpectExec(`CREATE INDEX "public"\."idx_events_name" ON "public"\."events_new" \("name"\)`).
+		mock.ExpectExec(`CREATE INDEX "idx_events_name" ON "public"\."events_new" \("name"\)`).
 			WillReturnResult(pgxmock.NewResult("CREATE", 0))
 
 		idx := infra.IndexDef{
@@ -357,7 +357,7 @@ func TestCreateIndex(t *testing.T) {
 	t.Run("creates unique index", func(t *testing.T) {
 		mock, client := setupConvertMock(t, pgxmock.QueryMatcherRegexp)
 
-		mock.ExpectExec(`CREATE UNIQUE INDEX "public"\."idx_events_email" ON "public"\."events_new" \("email"\)`).
+		mock.ExpectExec(`CREATE UNIQUE INDEX "idx_events_email" ON "public"\."events_new" \("email"\)`).
 			WillReturnResult(pgxmock.NewResult("CREATE", 0))
 
 		idx := infra.IndexDef{
@@ -374,7 +374,7 @@ func TestCreateIndex(t *testing.T) {
 	t.Run("creates index with non-btree method", func(t *testing.T) {
 		mock, client := setupConvertMock(t, pgxmock.QueryMatcherRegexp)
 
-		mock.ExpectExec(`CREATE INDEX "public"\."idx_events_data" ON "public"\."events_new" USING gin \("data"\)`).
+		mock.ExpectExec(`CREATE INDEX "idx_events_data" ON "public"\."events_new" USING gin \("data"\)`).
 			WillReturnResult(pgxmock.NewResult("CREATE", 0))
 
 		idx := infra.IndexDef{
@@ -391,7 +391,7 @@ func TestCreateIndex(t *testing.T) {
 		mock, client := setupConvertMock(t, pgxmock.QueryMatcherRegexp)
 
 		predicate := "status = 'active'"
-		mock.ExpectExec(`CREATE INDEX "public"\."idx_events_active" ON "public"\."events_new" \("status"\) WHERE status = 'active'`).
+		mock.ExpectExec(`CREATE INDEX "idx_events_active" ON "public"\."events_new" \("status"\) WHERE status = 'active'`).
 			WillReturnResult(pgxmock.NewResult("CREATE", 0))
 
 		idx := infra.IndexDef{
@@ -409,7 +409,7 @@ func TestCreateIndex(t *testing.T) {
 		mock, client := setupConvertMock(t, pgxmock.QueryMatcherRegexp)
 
 		expression := "lower(email)"
-		mock.ExpectExec(`CREATE INDEX "public"\."idx_events_lower_email" ON "public"\."events_new" \(lower\(email\)\)`).
+		mock.ExpectExec(`CREATE INDEX "idx_events_lower_email" ON "public"\."events_new" \(lower\(email\)\)`).
 			WillReturnResult(pgxmock.NewResult("CREATE", 0))
 
 		idx := infra.IndexDef{
@@ -444,7 +444,7 @@ func TestCreateIndex(t *testing.T) {
 	t.Run("returns error on connection failure for regular index", func(t *testing.T) {
 		mock, client := setupConvertMock(t, pgxmock.QueryMatcherRegexp)
 
-		mock.ExpectExec(`CREATE INDEX "public"\."idx_events_name"`).
+		mock.ExpectExec(`CREATE INDEX "idx_events_name"`).
 			WillReturnError(ErrPostgreSQLConnectionFailure)
 
 		idx := infra.IndexDef{

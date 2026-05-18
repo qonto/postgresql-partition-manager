@@ -89,6 +89,7 @@ type ConvertDBClient interface {
 	// Cleanup operations
 	DropTable(schema, table string) error
 	DropCDCQueue(schema, table string) error
+	ReassignSequences(schema, oldTable, newTable string) error
 
 	// Transaction management
 	BeginTx(ctx context.Context) (postgresql.Tx, error)
@@ -520,7 +521,7 @@ func (c *Converter) createPartitions(schema, sourceTable, targetTable string) er
 		minDate = maxDate
 	}
 
-	// Generate partitions from min to max
+	// Generate partitions from min to max, advancing by one interval each iteration
 	currentDate := minDate
 
 	for !currentDate.After(maxDate) {
@@ -543,13 +544,8 @@ func (c *Converter) createPartitions(schema, sourceTable, targetTable string) er
 			return fmt.Errorf("failed to create partition %s: %w", partitionName, err)
 		}
 
-		// Move to next interval
-		nextDate, err := c.config.GetPreProvisionedPartitions(currentDate)
-		if err != nil || len(nextDate) == 0 {
-			break
-		}
-
-		currentDate = nextDate[0].UpperBound
+		// Advance to the next interval by using the current partition's upper bound
+		currentDate = p.UpperBound
 	}
 
 	// Create pre-provisioned future partitions

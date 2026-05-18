@@ -397,6 +397,33 @@ func (e *CutoverEngine) postCutover(ctx context.Context, referencingFKs []postgr
 // renameIndexesPostCutover renames indexes on the new source table (formerly target)
 // by replacing the target table name prefix with the source table name prefix.
 func (e *CutoverEngine) renameIndexesPostCutover(_ context.Context) error {
+	// First, rename indexes on the old table (events_old) to avoid name conflicts.
+	// After the rename swap, events_old still owns indexes with the original source table prefix
+	// (e.g., "events_pkey"). We need to move them out of the way before renaming the new table's indexes.
+	oldTableName := e.sourceTable + "_old"
+
+	oldIndexes, err := e.db.GetTableIndexes(e.schema, oldTableName)
+	if err != nil {
+		e.logger.Warn("Could not get indexes on old table for rename (may not exist)", "error", err)
+	} else {
+		for _, idx := range oldIndexes {
+			if strings.HasPrefix(idx.Name, e.sourceTable) {
+				newName := strings.Replace(idx.Name, e.sourceTable, oldTableName, 1)
+
+				e.logger.Info("Renaming old table index to avoid conflict",
+					"schema", e.schema,
+					"oldName", idx.Name,
+					"newName", newName,
+				)
+
+				if err := e.db.RenameIndex(e.schema, idx.Name, newName); err != nil {
+					return fmt.Errorf("failed to rename old index %s to %s: %w", idx.Name, newName, err)
+				}
+			}
+		}
+	}
+
+	// Now rename indexes on the new source table (formerly target) to use the source table prefix
 	indexes, err := e.db.GetTableIndexes(e.schema, e.sourceTable)
 	if err != nil {
 		return fmt.Errorf("failed to get indexes for rename: %w", err)

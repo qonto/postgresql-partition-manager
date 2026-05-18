@@ -254,6 +254,8 @@ func (e *CleanupEngine) dropCDCQueue() error {
 
 // dropSourceOldTable drops the source_old table.
 // Skips gracefully if the table does not exist (Requirement 9.2).
+// Before dropping, reassigns any sequence ownership from the old table to the new table
+// to avoid cascade-dropping sequences still used by the new partitioned table.
 func (e *CleanupEngine) dropSourceOldTable(sourceOldName string) error {
 	exists, err := e.db.IsTableExists(e.schema, sourceOldName)
 	if err != nil {
@@ -267,6 +269,19 @@ func (e *CleanupEngine) dropSourceOldTable(sourceOldName string) error {
 		)
 
 		return nil
+	}
+
+	// Reassign sequence ownership from old table to new table before dropping.
+	// BIGSERIAL columns create sequences owned by the original table. After RENAME,
+	// the sequence ownership still points to the old table. Without reassignment,
+	// DROP TABLE would cascade-drop the sequence, breaking the new table's DEFAULT.
+	if err := e.db.ReassignSequences(e.schema, sourceOldName, e.sourceTable); err != nil {
+		e.logger.Warn("Could not reassign sequences (may not have any)",
+			"schema", e.schema,
+			"oldTable", sourceOldName,
+			"newTable", e.sourceTable,
+			"error", err,
+		)
 	}
 
 	if err := e.db.DropTable(e.schema, sourceOldName); err != nil {

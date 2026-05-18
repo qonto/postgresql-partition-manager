@@ -187,6 +187,10 @@ func (m *mockConvertDBClient) DropCDCQueue(schema, table string) error {
 	return nil
 }
 
+func (m *mockConvertDBClient) ReassignSequences(schema, oldTable, newTable string) error {
+	return nil
+}
+
 func (m *mockConvertDBClient) BeginTx(ctx context.Context) (postgresql.Tx, error) {
 	return nil, nil
 }
