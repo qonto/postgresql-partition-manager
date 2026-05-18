@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/convert/postgresql"
 )
 
@@ -70,14 +68,5 @@ type ConvertDBClient interface {
 	DropCDCQueue(schema, table string) error
 
 	// Transaction management
-	BeginTx(ctx context.Context) (Tx, error)
-}
-
-// Tx represents a database transaction for operations that need atomicity.
-type Tx interface {
-	Commit(ctx context.Context) error
-	Rollback(ctx context.Context) error
-	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	BeginTx(ctx context.Context) (postgresql.Tx, error)
 }
