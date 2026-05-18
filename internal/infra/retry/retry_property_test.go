@@ -35,7 +35,7 @@ func TestProperty15_DeadlockAlwaysRetriesExactly3Times(t *testing.T) {
 			return deadlockErr
 		}
 
-		err := retry.WithDeadlockRetry(context.Background(), logger, operation)
+		err := retry.WithDeadlockRetryWithDelay(context.Background(), logger, 0, operation)
 
 		// The operation must have been called exactly 3 times
 		if attempts != 3 {
@@ -66,7 +66,7 @@ func TestProperty15_NonDeadlockErrorNotRetried(t *testing.T) {
 			return pgErr
 		}
 
-		err := retry.WithDeadlockRetry(context.Background(), logger, operation)
+		err := retry.WithDeadlockRetryWithDelay(context.Background(), logger, 0, operation)
 
 		// The operation must have been called exactly 1 time (no retry)
 		if attempts != 1 {
@@ -95,7 +95,7 @@ func TestProperty15_NonPgErrorNotRetried(t *testing.T) {
 			return genericErr
 		}
 
-		err := retry.WithDeadlockRetry(context.Background(), logger, operation)
+		err := retry.WithDeadlockRetryWithDelay(context.Background(), logger, 0, operation)
 
 		// The operation must have been called exactly 1 time (no retry)
 		if attempts != 1 {
@@ -129,7 +129,7 @@ func TestProperty15_DeadlockSucceedsAfterNFailures(t *testing.T) {
 			return nil
 		}
 
-		err := retry.WithDeadlockRetry(context.Background(), logger, operation)
+		err := retry.WithDeadlockRetryWithDelay(context.Background(), logger, 0, operation)
 
 		expectedAttempts := failuresBeforeSuccess + 1
 		if attempts != expectedAttempts {
@@ -157,7 +157,7 @@ func TestProperty15_DeadlockErrorWrapped(t *testing.T) {
 			return deadlockErr
 		}
 
-		err := retry.WithDeadlockRetry(context.Background(), logger, operation)
+		err := retry.WithDeadlockRetryWithDelay(context.Background(), logger, 0, operation)
 
 		// The returned error must not be nil
 		if err == nil {
@@ -194,7 +194,7 @@ func TestProperty15_ContextCancellationStopsRetry(t *testing.T) {
 			return deadlockErr
 		}
 
-		err := retry.WithDeadlockRetry(ctx, logger, operation)
+		err := retry.WithDeadlockRetryWithDelay(ctx, logger, 0, operation)
 
 		// With a cancelled context, the operation should be called exactly once
 		// (first attempt fails with deadlock, then context cancellation prevents retry)

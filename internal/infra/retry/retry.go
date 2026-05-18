@@ -29,8 +29,13 @@ func WithRetry(maxRetries int, operation func(attempt int) error) error {
 // (error code 40P01) is detected, with a 1-second fixed delay between attempts.
 // Non-deadlock errors are returned immediately without retry.
 func WithDeadlockRetry(ctx context.Context, logger slog.Logger, operation func() error) error {
+	return WithDeadlockRetryWithDelay(ctx, logger, 1*time.Second, operation)
+}
+
+// WithDeadlockRetryWithDelay is like WithDeadlockRetry but accepts a configurable delay
+// between retry attempts. This is useful for testing with zero delay.
+func WithDeadlockRetryWithDelay(ctx context.Context, logger slog.Logger, retryDelay time.Duration, operation func() error) error {
 	const maxRetries = 3
-	const retryDelay = 1 * time.Second
 
 	var err error
 
@@ -47,10 +52,18 @@ func WithDeadlockRetry(ctx context.Context, logger slog.Logger, operation func()
 		logger.Warn("Deadlock detected, retrying", "attempt", attempt, "maxRetries", maxRetries)
 
 		if attempt < maxRetries {
-			select {
-			case <-ctx.Done():
-				return fmt.Errorf("context cancelled during deadlock retry: %w", ctx.Err())
-			case <-time.After(retryDelay):
+			if retryDelay > 0 {
+				select {
+				case <-ctx.Done():
+					return fmt.Errorf("context cancelled during deadlock retry: %w", ctx.Err())
+				case <-time.After(retryDelay):
+				}
+			} else {
+				select {
+				case <-ctx.Done():
+					return fmt.Errorf("context cancelled during deadlock retry: %w", ctx.Err())
+				default:
+				}
 			}
 		}
 	}
