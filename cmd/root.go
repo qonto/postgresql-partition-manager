@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	convertcmd "github.com/qonto/postgresql-partition-manager/cmd/convert"
 	"github.com/qonto/postgresql-partition-manager/cmd/run"
 	"github.com/qonto/postgresql-partition-manager/cmd/validate"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/build"
@@ -83,6 +84,7 @@ func Execute() {
 
 	cmd.AddCommand(validate.ValidateCmd())
 	cmd.AddCommand(run.RunCmd())
+	cmd.AddCommand(convertcmd.ConvertCmd())
 
 	err = cmd.Execute()
 	if err != nil {

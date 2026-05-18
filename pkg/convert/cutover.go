@@ -14,8 +14,14 @@ import (
 // ErrQueueNotEmpty is returned when the CDC queue is not empty after the final replay drain.
 var ErrQueueNotEmpty = errors.New("CDC queue not empty after final replay - aborting cutover")
 
+// ErrLockTimeout is returned when a lock acquisition times out during cutover or rollback.
+var ErrLockTimeout = errors.New("lock timeout exceeded - could not acquire required lock")
+
 // ErrSourceOldNotFound is returned when rollback is attempted but source_old table does not exist.
 var ErrSourceOldNotFound = errors.New("source_old table does not exist - rollback is not applicable")
+
+// ErrRollbackNotApplicable is returned when rollback cannot be performed (alias for ErrSourceOldNotFound).
+var ErrRollbackNotApplicable = ErrSourceOldNotFound
 
 // CutoverEngine handles the atomic cutover swap and rollback operations.
 // It coordinates the pre-cutover FK drop, advisory lock, trigger disable,
