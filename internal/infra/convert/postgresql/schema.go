@@ -137,10 +137,16 @@ func (c *Client) GetTableForeignKeys(schema, table string) ([]ForeignKeyDef, err
 	query := `
 		SELECT
 			con.conname AS constraint_name,
-			array_agg(a.attname ORDER BY array_position(con.conkey, a.attnum)) AS columns,
+			(SELECT array_agg(att.attname ORDER BY ord.pos)
+			 FROM unnest(con.conkey) WITH ORDINALITY AS ord(attnum, pos)
+			 JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ord.attnum
+			) AS columns,
 			nf.nspname AS referenced_schema,
 			cf.relname AS referenced_table,
-			array_agg(af.attname ORDER BY array_position(con.confkey, af.attnum)) AS referenced_columns,
+			(SELECT array_agg(att.attname ORDER BY ord.pos)
+			 FROM unnest(con.confkey) WITH ORDINALITY AS ord(attnum, pos)
+			 JOIN pg_attribute att ON att.attrelid = con.confrelid AND att.attnum = ord.attnum
+			) AS referenced_columns,
 			CASE con.confdeltype
 				WHEN 'a' THEN 'NO ACTION'
 				WHEN 'r' THEN 'RESTRICT'
@@ -160,10 +166,7 @@ func (c *Client) GetTableForeignKeys(schema, table string) ([]ForeignKeyDef, err
 		JOIN pg_namespace n ON n.oid = c.relnamespace
 		JOIN pg_class cf ON cf.oid = con.confrelid
 		JOIN pg_namespace nf ON nf.oid = cf.relnamespace
-		JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = ANY(con.conkey)
-		JOIN pg_attribute af ON af.attrelid = con.confrelid AND af.attnum = ANY(con.confkey)
 		WHERE n.nspname = $1 AND c.relname = $2 AND con.contype = 'f'
-		GROUP BY con.conname, nf.nspname, cf.relname, con.confdeltype, con.confupdtype
 		ORDER BY con.conname`
 
 	rows, err := c.conn.Query(c.ctx, query, schema, table)
@@ -197,10 +200,16 @@ func (c *Client) GetReferencingForeignKeys(schema, table string) ([]ForeignKeyDe
 	query := `
 		SELECT
 			con.conname AS constraint_name,
-			array_agg(a.attname ORDER BY array_position(con.conkey, a.attnum)) AS columns,
+			(SELECT array_agg(att.attname ORDER BY ord.pos)
+			 FROM unnest(con.conkey) WITH ORDINALITY AS ord(attnum, pos)
+			 JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ord.attnum
+			) AS columns,
 			n.nspname AS referencing_schema,
 			c.relname AS referencing_table,
-			array_agg(af.attname ORDER BY array_position(con.confkey, af.attnum)) AS referenced_columns,
+			(SELECT array_agg(att.attname ORDER BY ord.pos)
+			 FROM unnest(con.confkey) WITH ORDINALITY AS ord(attnum, pos)
+			 JOIN pg_attribute att ON att.attrelid = con.confrelid AND att.attnum = ord.attnum
+			) AS referenced_columns,
 			CASE con.confdeltype
 				WHEN 'a' THEN 'NO ACTION'
 				WHEN 'r' THEN 'RESTRICT'
@@ -220,10 +229,7 @@ func (c *Client) GetReferencingForeignKeys(schema, table string) ([]ForeignKeyDe
 		JOIN pg_namespace n ON n.oid = c.relnamespace
 		JOIN pg_class cf ON cf.oid = con.confrelid
 		JOIN pg_namespace nf ON nf.oid = cf.relnamespace
-		JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = ANY(con.conkey)
-		JOIN pg_attribute af ON af.attrelid = con.confrelid AND af.attnum = ANY(con.confkey)
 		WHERE nf.nspname = $1 AND cf.relname = $2 AND con.contype = 'f'
-		GROUP BY con.conname, n.nspname, c.relname, con.confdeltype, con.confupdtype
 		ORDER BY con.conname`
 
 	rows, err := c.conn.Query(c.ctx, query, schema, table)
