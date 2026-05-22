@@ -58,11 +58,13 @@ func InitCmd() *cobra.Command {
 			)
 
 			if dryRun {
-				log.Info("[DRY-RUN] Would create ppm_migration_metadata table")
+				log.Info("[DRY-RUN] Would execute SQL", "sql", convertpg.CreateMetadataTableSQL)
 				return
 			}
 
 			db := convertpg.New(*log, conn)
+
+			log.Info("Executing SQL", "sql", convertpg.CreateMetadataTableSQL)
 
 			if err := db.EnsureMetadataTable(); err != nil {
 				log.Error("Failed to create metadata table", "error", err)

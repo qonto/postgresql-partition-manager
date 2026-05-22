@@ -9,7 +9,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const createMetadataTableSQL = `
+// CreateMetadataTableSQL is the SQL statement used to create the migration metadata table.
+const CreateMetadataTableSQL = `
 CREATE TABLE IF NOT EXISTS ppm_migration_metadata (
     schema_name         TEXT NOT NULL,
     table_name          TEXT NOT NULL,
@@ -24,9 +25,9 @@ CREATE TABLE IF NOT EXISTS ppm_migration_metadata (
 
 // EnsureMetadataTable creates the ppm_migration_metadata table if it does not already exist.
 func (c *Client) EnsureMetadataTable() error {
-	c.logger.Debug("Ensuring migration metadata table exists")
+	c.logger.Debug("Ensuring migration metadata table exists", "sql", CreateMetadataTableSQL)
 
-	_, err := c.conn.Exec(c.ctx, createMetadataTableSQL)
+	_, err := c.conn.Exec(c.ctx, CreateMetadataTableSQL)
 	if err != nil {
 		return fmt.Errorf("failed to create migration metadata table: %w", err)
 	}
