@@ -13,7 +13,7 @@ const createMetadataTableSQL = `
 CREATE TABLE IF NOT EXISTS ppm_migration_metadata (
     schema_name         TEXT NOT NULL,
     table_name          TEXT NOT NULL,
-    phase               TEXT NOT NULL CHECK (phase IN ('setup', 'backfill', 'replay', 'verify', 'cutover', 'cleanup', 'rollback_complete')),
+    phase               TEXT NOT NULL CHECK (phase IN ('setup', 'backfill', 'replay', 'verify', 'cutover', 'cutover_complete', 'cleanup', 'rollback_complete')),
     last_backfill_pk    TEXT[],
     last_replay_seq     BIGINT DEFAULT 0,
     dropped_fks         JSONB DEFAULT '[]'::JSONB,

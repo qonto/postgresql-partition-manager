@@ -21,6 +21,7 @@ var allPhases = []Phase{
 	PhaseReplay,
 	PhaseVerify,
 	PhaseCutover,
+	PhaseCutoverComplete,
 	PhaseCleanup,
 	PhaseRollbackComplete,
 }

@@ -69,11 +69,11 @@ func NewCutoverEngine(logger slog.Logger, db ConvertDBClient, cfg CutoverEngineC
 //  1. Record referencing FK definitions in metadata (for rollback)
 //  2. Begin transaction with lock_timeout and statement_timeout
 //  3. Acquire advisory lock
-//  4. Acquire ACCESS EXCLUSIVE on source, SHARE ROW EXCLUSIVE on target (deterministic order)
+//  4. Acquire ACCESS EXCLUSIVE on child tables, source, SHARE ROW EXCLUSIVE on target
 //  5. Disable CDC trigger
 //  6. Final replay loop (drain queue completely)
 //  7. Assert queue is empty (abort if not)
-//  8. Drop referencing FKs from child tables
+//  8. Drop referencing FKs from child tables (already locked)
 //  9. Rename swap (source → source_old, target → source)
 //  10. Recreate FKs with NOT VALID pointing to new partitioned table
 //  11. Commit
@@ -126,7 +126,26 @@ func (e *CutoverEngine) Cutover(ctx context.Context) error {
 		return fmt.Errorf("failed to acquire advisory lock: %w", err)
 	}
 
-	// Step 4: Acquire ACCESS EXCLUSIVE on source, SHARE ROW EXCLUSIVE on target (deterministic order)
+	// Step 4: Acquire locks in deterministic order to prevent deadlocks.
+	// Child tables (referencing FK) MUST be locked BEFORE the source table.
+	// Otherwise, a concurrent transaction may hold a lock on a child table (e.g., INSERT
+	// into event_comments with FK check) and wait for the source table (blocked by our
+	// ACCESS EXCLUSIVE). When we then try to lock the child table, we deadlock.
+	// Lock order: child tables → source → target (alphabetical within each group).
+	for _, fk := range referencingFKs {
+		childTable := e.getChildTableFromFK(fk)
+
+		e.logger.Info("Acquiring ACCESS EXCLUSIVE lock on child table",
+			"schema", e.schema,
+			"table", childTable,
+			"constraint", fk.Name,
+		)
+
+		if err := e.db.AcquireExclusiveLock(e.schema, childTable); err != nil {
+			return fmt.Errorf("failed to acquire ACCESS EXCLUSIVE lock on child table %s: %w", childTable, err)
+		}
+	}
+
 	if err := e.db.AcquireExclusiveLock(e.schema, e.sourceTable); err != nil {
 		return fmt.Errorf("failed to acquire ACCESS EXCLUSIVE lock on source: %w", err)
 	}
@@ -166,29 +185,28 @@ func (e *CutoverEngine) Cutover(ctx context.Context) error {
 		return ErrQueueNotEmpty
 	}
 
-	// Step 8: Lock child tables and drop referencing FKs
-	// We must lock child tables BEFORE dropping their FK constraints to prevent deadlocks.
-	// Without this, a concurrent transaction holding a lock on the child table and waiting
-	// for the source table (blocked by our ACCESS EXCLUSIVE) creates a deadlock cycle.
-	for _, fk := range referencingFKs {
-		childTable := e.getChildTableFromFK(fk)
-
-		e.logger.Info("Acquiring ACCESS EXCLUSIVE lock on child table",
+	// Step 8: Drop referencing FKs from child tables (already locked in step 4)
+	if len(referencingFKs) > 0 {
+		e.logger.Info("Dropping referencing foreign keys",
 			"schema", e.schema,
-			"table", childTable,
-			"constraint", fk.Name,
+			"table", e.sourceTable,
+			"fkCount", len(referencingFKs),
 		)
 
-		if err := e.db.AcquireExclusiveLock(e.schema, childTable); err != nil {
-			return fmt.Errorf("failed to acquire ACCESS EXCLUSIVE lock on child table %s: %w", childTable, err)
-		}
-	}
+		for _, fk := range referencingFKs {
+			childTable := e.getChildTableFromFK(fk)
 
-	for _, fk := range referencingFKs {
-		childTable := e.getChildTableFromFK(fk)
+			e.logger.Info("Dropping foreign key",
+				"constraint", fk.Name,
+				"childTable", childTable,
+				"referencedTable", e.sourceTable,
+				"columns", fk.Columns,
+				"referencedColumns", fk.ReferencedColumns,
+			)
 
-		if err := e.db.DropForeignKey(e.schema, childTable, fk.Name); err != nil {
-			return fmt.Errorf("failed to drop referencing FK %s on %s: %w", fk.Name, childTable, err)
+			if err := e.db.DropForeignKey(e.schema, childTable, fk.Name); err != nil {
+				return fmt.Errorf("failed to drop referencing FK %s on %s: %w", fk.Name, childTable, err)
+			}
 		}
 	}
 

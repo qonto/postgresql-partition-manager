@@ -11,6 +11,7 @@ const (
 	PhaseReplay           Phase = "replay"
 	PhaseVerify           Phase = "verify"
 	PhaseCutover          Phase = "cutover"
+	PhaseCutoverComplete  Phase = "cutover_complete"
 	PhaseCleanup          Phase = "cleanup"
 	PhaseRollbackComplete Phase = "rollback_complete"
 )
@@ -21,9 +22,10 @@ const (
 // previously persisted as the current phase.
 var AllowedTransitions = map[Phase][]Phase{
 	PhaseSetup:            {PhaseBackfill},
-	PhaseBackfill:         {PhaseReplay, PhaseBackfill, PhaseCutover},
-	PhaseReplay:           {PhaseCutover, PhaseReplay},
-	PhaseVerify:           {PhaseCutover, PhaseReplay, PhaseBackfill},
-	PhaseCutover:          {PhaseCleanup, PhaseRollbackComplete},
+	PhaseBackfill:         {PhaseReplay, PhaseBackfill, PhaseCutoverComplete},
+	PhaseReplay:           {PhaseCutoverComplete, PhaseReplay},
+	PhaseVerify:           {PhaseCutoverComplete, PhaseReplay, PhaseBackfill},
+	PhaseCutover:          {PhaseCutoverComplete, PhaseCleanup, PhaseRollbackComplete},
+	PhaseCutoverComplete:  {PhaseCleanup, PhaseRollbackComplete},
 	PhaseRollbackComplete: {PhaseSetup},
 }

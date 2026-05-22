@@ -193,7 +193,7 @@ func (c *Converter) Verify(ctx context.Context, opts VerifyOptions) (*postgresql
 
 // Cutover executes the cutover phase: atomically swaps source and target tables.
 func (c *Converter) Cutover(ctx context.Context) error {
-	return c.executePhase(ctx, "cutover", PhaseCutover, func(ctx context.Context) error {
+	return c.executePhase(ctx, "cutover", PhaseCutoverComplete, func(ctx context.Context) error {
 		return c.runCutover(ctx)
 	})
 }
@@ -206,16 +206,20 @@ func (c *Converter) Rollback(ctx context.Context) error {
 }
 
 // Cleanup removes migration artifacts after a successful cutover.
+// When force is true, the state machine transition validation is bypassed,
+// allowing cleanup from any phase (e.g., to recover from a failed setup).
 func (c *Converter) Cleanup(ctx context.Context, confirm, force bool) error {
 	return c.executePhase(ctx, "cleanup", PhaseCleanup, func(ctx context.Context) error {
 		return c.runCleanup(ctx, confirm, force)
-	})
+	}, force)
 }
 
 // executePhase is the common orchestration logic for all phases.
 // It validates the state transition, executes the engine logic, transitions state,
 // and logs audit information (start/end timestamps, operation ID).
-func (c *Converter) executePhase(ctx context.Context, phaseName string, targetPhase Phase, fn func(ctx context.Context) error) error {
+// The optional skipValidation parameter (first variadic bool) bypasses state machine
+// transition validation when true — used by cleanup --force to allow cleanup from any phase.
+func (c *Converter) executePhase(ctx context.Context, phaseName string, targetPhase Phase, fn func(ctx context.Context) error, skipValidation ...bool) error {
 	startTime := time.Now()
 
 	c.logger.Info("Operation started",
@@ -237,9 +241,12 @@ func (c *Converter) executePhase(ctx context.Context, phaseName string, targetPh
 
 	currentPhase := Phase(currentState.Phase)
 
+	// Determine if validation should be skipped (cleanup --force)
+	shouldSkipValidation := len(skipValidation) > 0 && skipValidation[0]
+
 	// For setup phase, if we're already in setup (initial state), allow it
-	// For cleanup with force, skip phase validation
-	if targetPhase != PhaseSetup || currentPhase != PhaseSetup {
+	// For cleanup with force, skip phase validation entirely
+	if !shouldSkipValidation && (targetPhase != PhaseSetup || currentPhase != PhaseSetup) {
 		if err := c.state.ValidateTransition(currentPhase, targetPhase); err != nil {
 			if c.dryRun {
 				c.logDryRun("Phase transition validation failed: current=%s, requested=%s", currentPhase, targetPhase)

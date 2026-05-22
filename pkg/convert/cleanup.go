@@ -139,7 +139,7 @@ func (e *CleanupEngine) logArtifactsToRemove(sourceOldName, triggerName, trigger
 }
 
 // validateCleanupPhase checks that the migration is in the post-cutover phase.
-// Cleanup is only allowed when the current phase is PhaseCutover (meaning cutover completed).
+// Cleanup is only allowed when the current phase is PhaseCutoverComplete (or PhaseCutover for backward compatibility).
 func (e *CleanupEngine) validateCleanupPhase() error {
 	state, err := e.db.GetMigrationState(e.schema, e.sourceTable)
 	if err != nil {
@@ -158,12 +158,12 @@ func (e *CleanupEngine) validateCleanupPhase() error {
 	}
 
 	currentPhase := Phase(state.Phase)
-	if currentPhase != PhaseCutover {
+	if currentPhase != PhaseCutoverComplete && currentPhase != PhaseCutover {
 		e.logger.Error("Cleanup requires a completed cutover",
 			"schema", e.schema,
 			"table", e.sourceTable,
 			"currentPhase", currentPhase,
-			"requiredPhase", PhaseCutover,
+			"requiredPhase", PhaseCutoverComplete,
 		)
 
 		return fmt.Errorf("%w: current phase is %q", ErrCleanupPhaseInvalid, currentPhase)

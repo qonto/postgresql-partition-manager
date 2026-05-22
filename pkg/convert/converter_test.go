@@ -453,21 +453,60 @@ func TestConverter_Cleanup_ForceMode_BypassesCleanupEnginePhaseCheck(t *testing.
 }
 
 func TestConverter_Cleanup_InvalidStateTransition_ReturnsError(t *testing.T) {
-	// The Converter's state machine rejects cleanup from backfill phase
-	// regardless of force flag, because the state machine transition is invalid.
+	// Without force flag, the Converter's state machine rejects cleanup from backfill phase.
 	db := &converterMockDB{
 		migrationState: &postgresql.MigrationState{
 			Schema: "public",
 			Table:  "events",
-			Phase:  string(PhaseBackfill), // Not allowed to transition to cleanup
+			Phase:  string(PhaseBackfill), // Not allowed to transition to cleanup without force
 		},
 	}
 
 	converter := New(newTestLogger(), db, newTestConfig(), false)
 
-	err := converter.Cleanup(context.Background(), false, true)
+	// Without force, state machine rejects backfill → cleanup
+	err := converter.Cleanup(context.Background(), true, false)
 	if err == nil {
-		t.Fatal("expected error for invalid state machine transition (backfill → cleanup)")
+		t.Fatal("expected error for invalid state machine transition (backfill → cleanup) without force")
+	}
+}
+
+func TestConverter_Cleanup_ForceMode_BypassesStateMachineValidation(t *testing.T) {
+	// Force mode bypasses BOTH the Converter's state machine validation
+	// AND the CleanupEngine's internal phase check, allowing cleanup from any phase.
+	db := &converterMockDB{
+		migrationState: &postgresql.MigrationState{
+			Schema: "public",
+			Table:  "events",
+			Phase:  string(PhaseBackfill), // Normally not allowed to transition to cleanup
+		},
+		tableExistsMap: map[string]bool{
+			"public.events_old": true,
+		},
+		cdcQueueExistsMap: map[string]bool{
+			"public.events": true,
+		},
+	}
+
+	converter := New(newTestLogger(), db, newTestConfig(), false)
+
+	// Force mode: bypasses state machine, no --confirm needed
+	err := converter.Cleanup(context.Background(), false, true)
+	if err != nil {
+		t.Fatalf("expected force mode to bypass state machine validation, got: %v", err)
+	}
+
+	// Verify cleanup operations were performed
+	if db.dropTriggerCalls == 0 {
+		t.Error("expected trigger drop with force mode")
+	}
+
+	if db.dropCDCQueueCalls == 0 {
+		t.Error("expected CDC queue drop with force mode")
+	}
+
+	if db.dropTableCalls == 0 {
+		t.Error("expected table drop with force mode")
 	}
 }
 
