@@ -17,6 +17,10 @@ func (p PPM) ProvisioningPartitions() error {
 	provisioningFailed := false
 
 	for name, config := range p.partitions {
+		if p.skipConversionInProgress(name, config) {
+			continue
+		}
+
 		p.logger.Info("Provisioning partition", "partition", name)
 
 		if err := p.provisionPartitionsFor(config, p.workDate); err != nil {

@@ -14,6 +14,10 @@ func (p PPM) CleanupPartitions() error {
 	partitionContainAnError := false
 
 	for name, config := range p.partitions {
+		if p.skipConversionInProgress(name, config) {
+			continue
+		}
+
 		p.logger.Info("Cleaning partition", "partition", name)
 
 		// Existing

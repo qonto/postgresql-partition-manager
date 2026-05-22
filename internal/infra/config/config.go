@@ -16,7 +16,23 @@ type Config struct {
 	StatementTimeout int                                `mapstructure:"statement-timeout" validate:"required"`
 	LockTimeout      int                                `mapstructure:"lock-timeout" validate:"required"`
 	Partitions       map[string]partition.Configuration `mapstructure:"partitions" validate:"required,dive,keys,endkeys,required"`
-	Conversions      map[string]partition.Configuration `mapstructure:"conversions" validate:"omitempty"`
+}
+
+// GetConvertConfig looks up a table's configuration for conversion.
+// Returns the partition config with convert settings (defaults applied).
+func (c *Config) GetConvertConfig(tableName string) (partition.Configuration, error) {
+	cfg, ok := c.Partitions[tableName]
+	if !ok {
+		return partition.Configuration{}, fmt.Errorf("partition %q not found in configuration", tableName)
+	}
+
+	// Ensure Convert settings exist with defaults applied
+	if cfg.Convert == nil {
+		cfg.Convert = &partition.ConvertSettings{}
+	}
+	cfg.Convert.ApplyDefaults()
+
+	return cfg, nil
 }
 
 func (c *Config) Check() error {
@@ -27,65 +43,6 @@ func (c *Config) Check() error {
 		formatConfigurationError(err)
 
 		return fmt.Errorf("configuration validation failed: %w", err)
-	}
-
-	// Validate conversion entries with relaxed rules (CleanupPolicy not required)
-	// and apply default values for conversion-specific fields
-	if err := c.checkConversions(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *Config) checkConversions() error {
-	for name, conv := range c.Conversions {
-		// Validate conversion-specific fields that have constraints
-		if conv.Schema == "" {
-			return fmt.Errorf("configuration validation failed: conversions.%s.schema is required", name)
-		}
-
-		if conv.Table == "" {
-			return fmt.Errorf("configuration validation failed: conversions.%s.table is required", name)
-		}
-
-		if conv.PartitionKey == "" {
-			return fmt.Errorf("configuration validation failed: conversions.%s.partitionKey is required", name)
-		}
-
-		if conv.Interval == "" {
-			return fmt.Errorf("configuration validation failed: conversions.%s.interval is required", name)
-		}
-
-		if conv.Retention <= 0 {
-			return fmt.Errorf("configuration validation failed: conversions.%s.retention must be greater than 0", name)
-		}
-
-		if conv.PreProvisioned <= 0 {
-			return fmt.Errorf("configuration validation failed: conversions.%s.preProvisioned must be greater than 0", name)
-		}
-
-		// Validate batch sizes
-		if conv.BatchSize != 0 && (conv.BatchSize < 1 || conv.BatchSize > 1000000) {
-			return fmt.Errorf("configuration validation failed: conversions.%s.batchSize must be between 1 and 1000000", name)
-		}
-
-		if conv.ReplayBatchSize != 0 && (conv.ReplayBatchSize < 1 || conv.ReplayBatchSize > 1000000) {
-			return fmt.Errorf("configuration validation failed: conversions.%s.replayBatchSize must be between 1 and 1000000", name)
-		}
-
-		// Validate timeouts
-		if conv.LockTimeout != 0 && (conv.LockTimeout < 1 || conv.LockTimeout > 60) {
-			return fmt.Errorf("configuration validation failed: conversions.%s.lockTimeout must be between 1 and 60", name)
-		}
-
-		if conv.StatementTimeout != 0 && (conv.StatementTimeout < 5 || conv.StatementTimeout > 120) {
-			return fmt.Errorf("configuration validation failed: conversions.%s.statementTimeout must be between 5 and 120", name)
-		}
-
-		// Apply defaults for conversion-specific fields
-		conv.ApplyConvertDefaults()
-		c.Conversions[name] = conv
 	}
 
 	return nil

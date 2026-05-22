@@ -269,8 +269,9 @@ func partitionConfigForTest(schema, table string) partition.Configuration {
 		Retention:      90,
 		PreProvisioned: 7,
 		CleanupPolicy:  "drop",
+		Convert:        &partition.ConvertSettings{},
 	}
-	cfg.ApplyConvertDefaults()
+	cfg.Convert.ApplyDefaults()
 
 	return cfg
 }

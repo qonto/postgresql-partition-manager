@@ -145,17 +145,19 @@ func newConverter(t *testing.T, client *convertpg.Client) *convert.Converter {
 	require.NoError(t, err)
 
 	config := partition.Configuration{
-		Schema:           testSchema,
-		Table:            testTable,
-		PartitionKey:     "created_at",
-		Interval:         partition.Daily,
-		Retention:        30,
-		PreProvisioned:   7,
-		CleanupPolicy:    partition.Drop,
-		BatchSize:        100,
-		ReplayBatchSize:  50,
-		LockTimeout:      5,
-		StatementTimeout: 30,
+		Schema:         testSchema,
+		Table:          testTable,
+		PartitionKey:   "created_at",
+		Interval:       partition.Daily,
+		Retention:      30,
+		PreProvisioned: 7,
+		CleanupPolicy:  partition.Drop,
+		Convert: &partition.ConvertSettings{
+			BackfillBatchSize: 100,
+			ReplayBatchSize:   50,
+			LockTimeout:       5,
+			StatementTimeout:  30,
+		},
 	}
 
 	return convert.New(*log, client, config, false)
@@ -360,17 +362,19 @@ func TestIntegration_LockTimeoutDuringCutover(t *testing.T) {
 	client := convertpg.NewWithTimeouts(*log, db.conn, 1, 30)
 
 	config := partition.Configuration{
-		Schema:           testSchema,
-		Table:            testTable,
-		PartitionKey:     "created_at",
-		Interval:         partition.Daily,
-		Retention:        30,
-		PreProvisioned:   7,
-		CleanupPolicy:    partition.Drop,
-		BatchSize:        100,
-		ReplayBatchSize:  50,
-		LockTimeout:      1,
-		StatementTimeout: 30,
+		Schema:         testSchema,
+		Table:          testTable,
+		PartitionKey:   "created_at",
+		Interval:       partition.Daily,
+		Retention:      30,
+		PreProvisioned: 7,
+		CleanupPolicy:  partition.Drop,
+		Convert: &partition.ConvertSettings{
+			BackfillBatchSize: 100,
+			ReplayBatchSize:   50,
+			LockTimeout:       1,
+			StatementTimeout:  30,
+		},
 	}
 
 	converter := convert.New(*log, client, config, false)
@@ -469,17 +473,19 @@ func TestIntegration_ResumabilityAfterInterruption(t *testing.T) {
 	client := convertpg.NewWithTimeouts(*log, db.conn, 5, 30)
 
 	config := partition.Configuration{
-		Schema:           testSchema,
-		Table:            testTable,
-		PartitionKey:     "created_at",
-		Interval:         partition.Daily,
-		Retention:        30,
-		PreProvisioned:   7,
-		CleanupPolicy:    partition.Drop,
-		BatchSize:        50, // Small batch to verify progress tracking
-		ReplayBatchSize:  50,
-		LockTimeout:      5,
-		StatementTimeout: 30,
+		Schema:         testSchema,
+		Table:          testTable,
+		PartitionKey:   "created_at",
+		Interval:       partition.Daily,
+		Retention:      30,
+		PreProvisioned: 7,
+		CleanupPolicy:  partition.Drop,
+		Convert: &partition.ConvertSettings{
+			BackfillBatchSize: 50, // Small batch to verify progress tracking
+			ReplayBatchSize:   50,
+			LockTimeout:       5,
+			StatementTimeout:  30,
+		},
 	}
 
 	converter := convert.New(*log, client, config, false)
@@ -622,17 +628,19 @@ func TestIntegration_FKOIDCorrectness(t *testing.T) {
 	client := convertpg.NewWithTimeouts(*log, db.conn, 5, 30)
 
 	config := partition.Configuration{
-		Schema:           "public",
-		Table:            "orders",
-		PartitionKey:     "created_at",
-		Interval:         partition.Daily,
-		Retention:        30,
-		PreProvisioned:   7,
-		CleanupPolicy:    partition.Drop,
-		BatchSize:        100,
-		ReplayBatchSize:  50,
-		LockTimeout:      5,
-		StatementTimeout: 30,
+		Schema:         "public",
+		Table:          "orders",
+		PartitionKey:   "created_at",
+		Interval:       partition.Daily,
+		Retention:      30,
+		PreProvisioned: 7,
+		CleanupPolicy:  partition.Drop,
+		Convert: &partition.ConvertSettings{
+			BackfillBatchSize: 100,
+			ReplayBatchSize:   50,
+			LockTimeout:       5,
+			StatementTimeout:  30,
+		},
 	}
 
 	converter := convert.New(*log, client, config, false)

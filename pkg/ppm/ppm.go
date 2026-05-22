@@ -25,6 +25,8 @@ type PostgreSQLClient interface {
 	DetachPartitionConcurrently(schema, table, parent string) error
 	FinalizePartitionDetach(schema, table, parent string) error
 	SetPartitionReplicaIdentity(schema, table, parent string) error
+	// IsConversionInProgress checks if a table has an active conversion in progress.
+	IsConversionInProgress(schema, table string) (bool, error)
 }
 
 type PPM struct {

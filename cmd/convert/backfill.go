@@ -47,11 +47,10 @@ func BackfillCmd() *cobra.Command {
 				os.Exit(InternalErrorExitCode)
 			}
 
-			// Look up the conversion configuration by table name
-			convConfig, ok := cfg.Conversions[tableName]
-			if !ok {
-				log.Error("Conversion configuration not found", "table", tableName)
-				fmt.Printf("ERROR: No conversion configuration found for %q. Check your configuration file.\n", tableName)
+			// Look up the partition configuration by table name (with convert defaults applied)
+			convConfig, err := cfg.GetConvertConfig(tableName)
+			if err != nil {
+				log.Error(err.Error())
 				os.Exit(InvalidConfigurationExitCode)
 			}
 
@@ -73,7 +72,7 @@ func BackfillCmd() *cobra.Command {
 			)
 
 			// Create the convert DB client with conversion-specific timeouts
-			db := convertpg.NewWithTimeouts(*log, conn, convConfig.LockTimeout, convConfig.StatementTimeout)
+			db := convertpg.NewWithTimeouts(*log, conn, convConfig.Convert.LockTimeout, convConfig.Convert.StatementTimeout)
 
 			// Ensure metadata table exists
 			if err := db.EnsureMetadataTable(); err != nil {

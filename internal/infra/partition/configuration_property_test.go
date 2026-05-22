@@ -21,17 +21,19 @@ func TestProperty11_ConfigurationValidation_ValidConfig(t *testing.T) {
 		cleanupPolicies := []CleanupPolicy{Drop, Detach}
 
 		cfg := Configuration{
-			Schema:           rapid.StringMatching(`[a-z][a-z0-9_]{0,19}`).Draw(t, "schema"),
-			Table:            rapid.StringMatching(`[a-z][a-z0-9_]{0,19}`).Draw(t, "table"),
-			PartitionKey:     rapid.StringMatching(`[a-z][a-z0-9_]{0,19}`).Draw(t, "partitionKey"),
-			Interval:         intervals[rapid.IntRange(0, len(intervals)-1).Draw(t, "intervalIdx")],
-			Retention:        rapid.IntRange(1, 365).Draw(t, "retention"),
-			PreProvisioned:   rapid.IntRange(1, 30).Draw(t, "preProvisioned"),
-			CleanupPolicy:    cleanupPolicies[rapid.IntRange(0, len(cleanupPolicies)-1).Draw(t, "cleanupPolicyIdx")],
-			BatchSize:        rapid.IntRange(1, 1000000).Draw(t, "batchSize"),
-			ReplayBatchSize:  rapid.IntRange(1, 1000000).Draw(t, "replayBatchSize"),
-			LockTimeout:      rapid.IntRange(1, 60).Draw(t, "lockTimeout"),
-			StatementTimeout: rapid.IntRange(5, 120).Draw(t, "statementTimeout"),
+			Schema:         rapid.StringMatching(`[a-z][a-z0-9_]{0,19}`).Draw(t, "schema"),
+			Table:          rapid.StringMatching(`[a-z][a-z0-9_]{0,19}`).Draw(t, "table"),
+			PartitionKey:   rapid.StringMatching(`[a-z][a-z0-9_]{0,19}`).Draw(t, "partitionKey"),
+			Interval:       intervals[rapid.IntRange(0, len(intervals)-1).Draw(t, "intervalIdx")],
+			Retention:      rapid.IntRange(1, 365).Draw(t, "retention"),
+			PreProvisioned: rapid.IntRange(1, 30).Draw(t, "preProvisioned"),
+			CleanupPolicy:  cleanupPolicies[rapid.IntRange(0, len(cleanupPolicies)-1).Draw(t, "cleanupPolicyIdx")],
+			Convert: &ConvertSettings{
+				BackfillBatchSize: rapid.IntRange(1, 1000000).Draw(t, "batchSize"),
+				ReplayBatchSize:   rapid.IntRange(1, 1000000).Draw(t, "replayBatchSize"),
+				LockTimeout:       rapid.IntRange(1, 60).Draw(t, "lockTimeout"),
+				StatementTimeout:  rapid.IntRange(5, 120).Draw(t, "statementTimeout"),
+			},
 		}
 
 		err := validate.Struct(cfg)
@@ -133,14 +135,31 @@ func TestProperty11_ConfigurationValidation_ZeroBatchSizeAccepted(t *testing.T) 
 	// Zero batch sizes are accepted (omitempty means zero value skips validation)
 	rapid.Check(t, func(t *rapid.T) {
 		cfg := validConversionConfig(t)
-		cfg.BatchSize = 0
-		cfg.ReplayBatchSize = 0
-		cfg.LockTimeout = 0
-		cfg.StatementTimeout = 0
+		cfg.Convert = &ConvertSettings{
+			BackfillBatchSize: 0,
+			ReplayBatchSize:   0,
+			LockTimeout:       0,
+			StatementTimeout:  0,
+		}
 
 		err := validate.Struct(cfg)
 		if err != nil {
 			t.Fatalf("configuration with zero optional fields should pass validation (omitempty), got: %v", err)
+		}
+	})
+}
+
+func TestProperty11_ConfigurationValidation_NilConvertAccepted(t *testing.T) {
+	validate := validator.New()
+
+	// Nil Convert field is accepted (omitempty on pointer means nil skips validation)
+	rapid.Check(t, func(t *rapid.T) {
+		cfg := validConversionConfig(t)
+		cfg.Convert = nil
+
+		err := validate.Struct(cfg)
+		if err != nil {
+			t.Fatalf("configuration with nil Convert should pass validation (omitempty), got: %v", err)
 		}
 	})
 }
@@ -156,7 +175,7 @@ func TestProperty12_BatchSizeRangeValidation_ValidRange(t *testing.T) {
 		batchSize := rapid.IntRange(1, 1000000).Draw(t, "batchSize")
 
 		cfg := validConversionConfig(t)
-		cfg.BatchSize = batchSize
+		cfg.Convert.BackfillBatchSize = batchSize
 
 		err := validate.Struct(cfg)
 		if err != nil {
@@ -172,7 +191,7 @@ func TestProperty12_BatchSizeRangeValidation_TooLarge(t *testing.T) {
 		batchSize := rapid.IntRange(1000001, 10000000).Draw(t, "tooLargeBatchSize")
 
 		cfg := validConversionConfig(t)
-		cfg.BatchSize = batchSize
+		cfg.Convert.BackfillBatchSize = batchSize
 
 		err := validate.Struct(cfg)
 		if err == nil {
@@ -188,7 +207,7 @@ func TestProperty12_BatchSizeRangeValidation_Negative(t *testing.T) {
 		batchSize := rapid.IntRange(-1000000, -1).Draw(t, "negativeBatchSize")
 
 		cfg := validConversionConfig(t)
-		cfg.BatchSize = batchSize
+		cfg.Convert.BackfillBatchSize = batchSize
 
 		err := validate.Struct(cfg)
 		if err == nil {
@@ -204,7 +223,7 @@ func TestProperty12_ReplayBatchSizeRangeValidation_ValidRange(t *testing.T) {
 		replayBatchSize := rapid.IntRange(1, 1000000).Draw(t, "replayBatchSize")
 
 		cfg := validConversionConfig(t)
-		cfg.ReplayBatchSize = replayBatchSize
+		cfg.Convert.ReplayBatchSize = replayBatchSize
 
 		err := validate.Struct(cfg)
 		if err != nil {
@@ -220,7 +239,7 @@ func TestProperty12_ReplayBatchSizeRangeValidation_TooLarge(t *testing.T) {
 		replayBatchSize := rapid.IntRange(1000001, 10000000).Draw(t, "tooLargeReplayBatchSize")
 
 		cfg := validConversionConfig(t)
-		cfg.ReplayBatchSize = replayBatchSize
+		cfg.Convert.ReplayBatchSize = replayBatchSize
 
 		err := validate.Struct(cfg)
 		if err == nil {
@@ -236,7 +255,7 @@ func TestProperty12_ReplayBatchSizeRangeValidation_Negative(t *testing.T) {
 		replayBatchSize := rapid.IntRange(-1000000, -1).Draw(t, "negativeReplayBatchSize")
 
 		cfg := validConversionConfig(t)
-		cfg.ReplayBatchSize = replayBatchSize
+		cfg.Convert.ReplayBatchSize = replayBatchSize
 
 		err := validate.Struct(cfg)
 		if err == nil {
@@ -251,16 +270,18 @@ func validConversionConfig(t *rapid.T) Configuration {
 	cleanupPolicies := []CleanupPolicy{Drop, Detach}
 
 	return Configuration{
-		Schema:           rapid.StringMatching(`[a-z][a-z0-9_]{0,19}`).Draw(t, "schema"),
-		Table:            rapid.StringMatching(`[a-z][a-z0-9_]{0,19}`).Draw(t, "table"),
-		PartitionKey:     rapid.StringMatching(`[a-z][a-z0-9_]{0,19}`).Draw(t, "partitionKey"),
-		Interval:         intervals[rapid.IntRange(0, len(intervals)-1).Draw(t, "intervalIdx")],
-		Retention:        rapid.IntRange(1, 365).Draw(t, "retention"),
-		PreProvisioned:   rapid.IntRange(1, 30).Draw(t, "preProvisioned"),
-		CleanupPolicy:    cleanupPolicies[rapid.IntRange(0, len(cleanupPolicies)-1).Draw(t, "cleanupPolicyIdx")],
-		BatchSize:        rapid.IntRange(1, 1000000).Draw(t, "batchSize"),
-		ReplayBatchSize:  rapid.IntRange(1, 1000000).Draw(t, "replayBatchSize"),
-		LockTimeout:      rapid.IntRange(1, 60).Draw(t, "lockTimeout"),
-		StatementTimeout: rapid.IntRange(5, 120).Draw(t, "statementTimeout"),
+		Schema:         rapid.StringMatching(`[a-z][a-z0-9_]{0,19}`).Draw(t, "schema"),
+		Table:          rapid.StringMatching(`[a-z][a-z0-9_]{0,19}`).Draw(t, "table"),
+		PartitionKey:   rapid.StringMatching(`[a-z][a-z0-9_]{0,19}`).Draw(t, "partitionKey"),
+		Interval:       intervals[rapid.IntRange(0, len(intervals)-1).Draw(t, "intervalIdx")],
+		Retention:      rapid.IntRange(1, 365).Draw(t, "retention"),
+		PreProvisioned: rapid.IntRange(1, 30).Draw(t, "preProvisioned"),
+		CleanupPolicy:  cleanupPolicies[rapid.IntRange(0, len(cleanupPolicies)-1).Draw(t, "cleanupPolicyIdx")],
+		Convert: &ConvertSettings{
+			BackfillBatchSize: rapid.IntRange(1, 1000000).Draw(t, "batchSize"),
+			ReplayBatchSize:   rapid.IntRange(1, 1000000).Draw(t, "replayBatchSize"),
+			LockTimeout:       rapid.IntRange(1, 60).Draw(t, "lockTimeout"),
+			StatementTimeout:  rapid.IntRange(5, 120).Draw(t, "statementTimeout"),
+		},
 	}
 }

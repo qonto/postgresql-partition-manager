@@ -318,18 +318,18 @@ func (c *Converter) executeDryRun(_ context.Context, phaseName string) error {
 		if err != nil {
 			c.logDryRun("Could not estimate row count: %v", err)
 		} else {
-			batches := rowCount / int64(c.config.BatchSize)
-			if rowCount%int64(c.config.BatchSize) != 0 {
+			batches := rowCount / int64(c.config.Convert.BackfillBatchSize)
+			if rowCount%int64(c.config.Convert.BackfillBatchSize) != 0 {
 				batches++
 			}
 
 			c.logDryRun("Estimated rows to process: %d", rowCount)
-			c.logDryRun("Batch size: %d", c.config.BatchSize)
+			c.logDryRun("Backfill batch size: %d", c.config.Convert.BackfillBatchSize)
 			c.logDryRun("Estimated batches: %d", batches)
 		}
 
 		c.logDryRun("INSERT INTO %s.%s SELECT * FROM %s.%s WHERE (pk) > (last_pk) ORDER BY pk LIMIT %d ON CONFLICT DO NOTHING",
-			schema, targetTable, schema, table, c.config.BatchSize)
+			schema, targetTable, schema, table, c.config.Convert.BackfillBatchSize)
 
 	case "replay":
 		lag, err := c.db.GetReplayLag(schema, table)
@@ -339,7 +339,7 @@ func (c *Converter) executeDryRun(_ context.Context, phaseName string) error {
 			c.logDryRun("Current replay lag: %d events", lag)
 		}
 
-		c.logDryRun("DELETE FROM %s.%s_cdc_queue ... RETURNING (batch of %d)", schema, table, c.config.ReplayBatchSize)
+		c.logDryRun("DELETE FROM %s.%s_cdc_queue ... RETURNING (replay batch of %d)", schema, table, c.config.Convert.ReplayBatchSize)
 		c.logDryRun("For INSERT/UPDATE: INSERT INTO target ... ON CONFLICT DO UPDATE")
 		c.logDryRun("For DELETE: DELETE FROM target WHERE pk = values")
 
@@ -349,7 +349,7 @@ func (c *Converter) executeDryRun(_ context.Context, phaseName string) error {
 		c.logDryRun("Ready for cutover when: replay_lag == 0 AND row_count_difference == 0")
 
 	case "cutover":
-		c.logDryRun("BEGIN transaction with lock_timeout=%ds, statement_timeout=%ds", c.config.LockTimeout, c.config.StatementTimeout)
+		c.logDryRun("BEGIN transaction with lock_timeout=%ds, statement_timeout=%ds", c.config.Convert.LockTimeout, c.config.Convert.StatementTimeout)
 		c.logDryRun("SELECT pg_advisory_xact_lock(hashtext('ppm_migration_%s.%s'))", schema, table)
 		c.logDryRun("LOCK TABLE %s.%s IN ACCESS EXCLUSIVE MODE", schema, table)
 		c.logDryRun("LOCK TABLE %s.%s IN SHARE ROW EXCLUSIVE MODE", schema, targetTable)
@@ -366,7 +366,7 @@ func (c *Converter) executeDryRun(_ context.Context, phaseName string) error {
 		c.logDryRun("VALIDATE CONSTRAINT on recreated foreign keys")
 
 	case "rollback":
-		c.logDryRun("BEGIN transaction with lock_timeout=%ds, statement_timeout=%ds", c.config.LockTimeout, c.config.StatementTimeout)
+		c.logDryRun("BEGIN transaction with lock_timeout=%ds, statement_timeout=%ds", c.config.Convert.LockTimeout, c.config.Convert.StatementTimeout)
 		c.logDryRun("SELECT pg_advisory_xact_lock(hashtext('ppm_migration_%s.%s'))", schema, table)
 		c.logDryRun("LOCK TABLE %s.%s IN ACCESS EXCLUSIVE MODE", schema, table)
 		c.logDryRun("LOCK TABLE %s.%s_old IN SHARE ROW EXCLUSIVE MODE", schema, table)
@@ -709,7 +709,7 @@ func (c *Converter) runBackfill(ctx context.Context) error {
 		SourceTable: c.config.Table,
 		TargetTable: targetTable,
 		PKColumns:   pkColumns,
-		BatchSize:   c.config.BatchSize,
+		BatchSize:   c.config.Convert.BackfillBatchSize,
 	})
 
 	return engine.Run(ctx)
@@ -729,7 +729,7 @@ func (c *Converter) runReplay(ctx context.Context) error {
 		SourceTable: c.config.Table,
 		TargetTable: targetTable,
 		PKColumns:   pkColumns,
-		BatchSize:   c.config.ReplayBatchSize,
+		BatchSize:   c.config.Convert.ReplayBatchSize,
 	})
 
 	return engine.Run(ctx)
@@ -763,7 +763,7 @@ func (c *Converter) runCutover(ctx context.Context) error {
 		SourceTable: c.config.Table,
 		TargetTable: targetTable,
 		PKColumns:   pkColumns,
-		BatchSize:   c.config.ReplayBatchSize,
+		BatchSize:   c.config.Convert.ReplayBatchSize,
 	})
 
 	return engine.Cutover(ctx)
@@ -783,7 +783,7 @@ func (c *Converter) runRollback(ctx context.Context) error {
 		SourceTable: c.config.Table,
 		TargetTable: targetTable,
 		PKColumns:   pkColumns,
-		BatchSize:   c.config.ReplayBatchSize,
+		BatchSize:   c.config.Convert.ReplayBatchSize,
 	})
 
 	return engine.Rollback(ctx)

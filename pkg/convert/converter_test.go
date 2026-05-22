@@ -192,17 +192,19 @@ func (m *converterMockDB) GetReplayLag(schema, table string) (int64, error) {
 
 func newTestConfig() partition.Configuration {
 	return partition.Configuration{
-		Schema:           "public",
-		Table:            "events",
-		PartitionKey:     "created_at",
-		Interval:         partition.Daily,
-		Retention:        90,
-		PreProvisioned:   7,
-		CleanupPolicy:    partition.Drop,
-		BatchSize:        10000,
-		ReplayBatchSize:  1000,
-		LockTimeout:      5,
-		StatementTimeout: 30,
+		Schema:         "public",
+		Table:          "events",
+		PartitionKey:   "created_at",
+		Interval:       partition.Daily,
+		Retention:      90,
+		PreProvisioned: 7,
+		CleanupPolicy:  partition.Drop,
+		Convert: &partition.ConvertSettings{
+			BackfillBatchSize: 10000,
+			ReplayBatchSize:   1000,
+			LockTimeout:       5,
+			StatementTimeout:  30,
+		},
 	}
 }
 

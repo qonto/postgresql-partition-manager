@@ -4,8 +4,147 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"gotest.tools/assert"
 )
+
+// --- ConvertSettings.ApplyDefaults tests ---
+
+func TestConvertSettingsApplyDefaults_AllZeroValues(t *testing.T) {
+	cs := &ConvertSettings{}
+	cs.ApplyDefaults()
+
+	assert.Equal(t, cs.BackfillBatchSize, 10000)
+	assert.Equal(t, cs.ReplayBatchSize, 1000)
+	assert.Equal(t, cs.LockTimeout, 5)
+	assert.Equal(t, cs.StatementTimeout, 30)
+}
+
+func TestConvertSettingsApplyDefaults_PreservesExistingValues(t *testing.T) {
+	cs := &ConvertSettings{
+		BackfillBatchSize: 5000,
+		ReplayBatchSize:   500,
+		LockTimeout:       10,
+		StatementTimeout:  60,
+	}
+	cs.ApplyDefaults()
+
+	assert.Equal(t, cs.BackfillBatchSize, 5000)
+	assert.Equal(t, cs.ReplayBatchSize, 500)
+	assert.Equal(t, cs.LockTimeout, 10)
+	assert.Equal(t, cs.StatementTimeout, 60)
+}
+
+func TestConvertSettingsApplyDefaults_PartialValues(t *testing.T) {
+	cs := &ConvertSettings{
+		BackfillBatchSize: 2000,
+		// ReplayBatchSize left at 0 → should get default
+		LockTimeout: 3,
+		// StatementTimeout left at 0 → should get default
+	}
+	cs.ApplyDefaults()
+
+	assert.Equal(t, cs.BackfillBatchSize, 2000)
+	assert.Equal(t, cs.ReplayBatchSize, 1000)
+	assert.Equal(t, cs.LockTimeout, 3)
+	assert.Equal(t, cs.StatementTimeout, 30)
+}
+
+// --- Configuration struct with Convert field tests ---
+
+func TestConfiguration_NilConvert_IsValid(t *testing.T) {
+	cfg := Configuration{
+		Schema:         "public",
+		Table:          "events",
+		PartitionKey:   "created_at",
+		Interval:       Daily,
+		Retention:      3,
+		PreProvisioned: 3,
+		CleanupPolicy:  Drop,
+		Convert:        nil,
+	}
+
+	validate := validator.New()
+	err := validate.Struct(cfg)
+	assert.NilError(t, err)
+}
+
+func TestConfiguration_EmptyConvert_IsValid(t *testing.T) {
+	cfg := Configuration{
+		Schema:         "public",
+		Table:          "events",
+		PartitionKey:   "created_at",
+		Interval:       Daily,
+		Retention:      3,
+		PreProvisioned: 3,
+		CleanupPolicy:  Drop,
+		Convert:        &ConvertSettings{},
+	}
+
+	validate := validator.New()
+	err := validate.Struct(cfg)
+	assert.NilError(t, err)
+}
+
+func TestConfiguration_WithConvert_IsValid(t *testing.T) {
+	cfg := Configuration{
+		Schema:         "public",
+		Table:          "events",
+		PartitionKey:   "created_at",
+		Interval:       Daily,
+		Retention:      3,
+		PreProvisioned: 3,
+		CleanupPolicy:  Drop,
+		Convert: &ConvertSettings{
+			BackfillBatchSize: 5000,
+			ReplayBatchSize:   2000,
+			LockTimeout:       10,
+			StatementTimeout:  60,
+		},
+	}
+
+	validate := validator.New()
+	err := validate.Struct(cfg)
+	assert.NilError(t, err)
+}
+
+func TestConfiguration_WithInvalidConvert_FailsValidation(t *testing.T) {
+	cfg := Configuration{
+		Schema:         "public",
+		Table:          "events",
+		PartitionKey:   "created_at",
+		Interval:       Daily,
+		Retention:      3,
+		PreProvisioned: 3,
+		CleanupPolicy:  Drop,
+		Convert: &ConvertSettings{
+			BackfillBatchSize: -1, // invalid: negative
+		},
+	}
+
+	validate := validator.New()
+	err := validate.Struct(cfg)
+	assert.Assert(t, err != nil, "configuration with invalid convert settings should fail validation")
+}
+
+func TestConfiguration_ConvertStatementTimeoutBelowMin_FailsValidation(t *testing.T) {
+	cfg := Configuration{
+		Schema:         "public",
+		Table:          "events",
+		PartitionKey:   "created_at",
+		Interval:       Daily,
+		Retention:      3,
+		PreProvisioned: 3,
+		CleanupPolicy:  Drop,
+		Convert: &ConvertSettings{
+			StatementTimeout: 2, // invalid: min is 5
+		},
+	}
+
+	validate := validator.New()
+	err := validate.Struct(cfg)
+	assert.Assert(t, err != nil, "configuration with statementTimeout below min should fail validation")
+}
 
 func configForInterval(interval Interval, retention, preProvisioned int) Configuration {
 	return Configuration{

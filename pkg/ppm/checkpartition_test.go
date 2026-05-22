@@ -12,6 +12,7 @@ import (
 	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
 	"github.com/qonto/postgresql-partition-manager/pkg/ppm"
 	"github.com/qonto/postgresql-partition-manager/pkg/ppm/mocks"
+	"github.com/stretchr/testify/mock"
 	"gotest.tools/assert"
 )
 
@@ -47,6 +48,9 @@ func TestCheckPartitions(t *testing.T) {
 	partitions["quarterly partition"] = partition.Configuration{Schema: "public", Table: "quarterly_table", PartitionKey: "quarterly", Interval: partition.Quarterly, Retention: 2, PreProvisioned: 2}
 	partitions["monthly partition"] = partition.Configuration{Schema: "public", Table: "monthly_table", PartitionKey: "month", Interval: partition.Monthly, Retention: 2, PreProvisioned: 2}
 	partitions["yearly partition"] = partition.Configuration{Schema: "public", Table: "yearly_table", PartitionKey: "year", Interval: partition.Yearly, Retention: 4, PreProvisioned: 4}
+
+	// Mock IsConversionInProgress for all partitions (no conversion in progress)
+	postgreSQLMock.On("IsConversionInProgress", mock.Anything, mock.Anything).Return(false, nil)
 
 	// Build mock for each partitions
 	for _, p := range partitions {
@@ -155,6 +159,7 @@ func TestCheckMissingPartitions(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			fmt.Println("tc.tables", tc.tables)
+			postgreSQLMock.On("IsConversionInProgress", config.Schema, config.Table).Return(false, nil).Once()
 			postgreSQLMock.On("GetPartitionSettings", config.Schema, config.Table).Return(string(partition.Range), config.PartitionKey, nil).Once()
 			postgreSQLMock.On("GetColumnDataType", config.Schema, config.Table, config.PartitionKey).Return(postgresql.Date, nil).Once()
 
@@ -198,6 +203,7 @@ func TestUnsupportedPartitionsStrategy(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			postgreSQLMock.On("IsConversionInProgress", config.Schema, config.Table).Return(false, nil).Once()
 			postgreSQLMock.On("GetColumnDataType", config.Schema, config.Table, config.PartitionKey).Return(postgresql.Date, nil).Once()
 			postgreSQLMock.On("GetPartitionSettings", config.Schema, config.Table).Return(string(tc.strategy), tc.key, nil).Once()
 

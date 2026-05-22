@@ -73,10 +73,10 @@ func StatusCmd() *cobra.Command {
 
 			tableName := args[0]
 
-			convConfig, ok := cfg.Conversions[tableName]
-			if !ok {
-				log.Error("Conversion configuration not found", "table", tableName)
-				fmt.Printf("ERROR: No conversion configuration found for %q. Check your configuration file.\n", tableName)
+			// Look up the partition configuration by table name (with convert defaults applied)
+			convConfig, err := cfg.GetConvertConfig(tableName)
+			if err != nil {
+				log.Error(err.Error())
 				os.Exit(InvalidConfigurationExitCode)
 			}
 

@@ -14,39 +14,39 @@ const (
 	Detach CleanupPolicy = "detach"
 )
 
-type Configuration struct {
-	Schema         string        `mapstructure:"schema" validate:"required"`
-	Table          string        `mapstructure:"table" validate:"required"`
-	PartitionKey   string        `mapstructure:"partitionKey" validate:"required"`
-	Interval       Interval      `mapstructure:"interval" validate:"required,oneof=daily weekly monthly quarterly yearly"`
-	Retention      int           `mapstructure:"retention" validate:"required,gt=0"`
-	PreProvisioned int           `mapstructure:"preProvisioned" validate:"required,gt=0"`
-	CleanupPolicy  CleanupPolicy `mapstructure:"cleanupPolicy" validate:"required,oneof=drop detach"`
-
-	// Conversion-specific fields (optional, only used by convert commands)
-	BatchSize        int `mapstructure:"batchSize" validate:"omitempty,min=1,max=1000000"`
-	ReplayBatchSize  int `mapstructure:"replayBatchSize" validate:"omitempty,min=1,max=1000000"`
-	LockTimeout      int `mapstructure:"lockTimeout" validate:"omitempty,min=1,max=60"`
-	StatementTimeout int `mapstructure:"statementTimeout" validate:"omitempty,min=5,max=120"`
+// ConvertSettings holds parameters specific to the convert operation.
+type ConvertSettings struct {
+	BackfillBatchSize int `mapstructure:"backfillBatchSize" validate:"omitempty,min=1,max=1000000"`
+	ReplayBatchSize   int `mapstructure:"replayBatchSize" validate:"omitempty,min=1,max=1000000"`
+	LockTimeout       int `mapstructure:"lockTimeout" validate:"omitempty,min=1,max=60"`
+	StatementTimeout  int `mapstructure:"statementTimeout" validate:"omitempty,min=5,max=120"`
 }
 
-// ApplyConvertDefaults sets default values for conversion-specific fields.
-func (c *Configuration) ApplyConvertDefaults() {
-	if c.BatchSize == 0 {
-		c.BatchSize = 10000
+// ApplyDefaults sets default values for unset fields.
+func (cs *ConvertSettings) ApplyDefaults() {
+	if cs.BackfillBatchSize == 0 {
+		cs.BackfillBatchSize = 10000
 	}
+	if cs.ReplayBatchSize == 0 {
+		cs.ReplayBatchSize = 1000
+	}
+	if cs.LockTimeout == 0 {
+		cs.LockTimeout = 5
+	}
+	if cs.StatementTimeout == 0 {
+		cs.StatementTimeout = 30
+	}
+}
 
-	if c.ReplayBatchSize == 0 {
-		c.ReplayBatchSize = 1000
-	}
-
-	if c.LockTimeout == 0 {
-		c.LockTimeout = 5
-	}
-
-	if c.StatementTimeout == 0 {
-		c.StatementTimeout = 30
-	}
+type Configuration struct {
+	Schema         string           `mapstructure:"schema" validate:"required"`
+	Table          string           `mapstructure:"table" validate:"required"`
+	PartitionKey   string           `mapstructure:"partitionKey" validate:"required"`
+	Interval       Interval         `mapstructure:"interval" validate:"required,oneof=daily weekly monthly quarterly yearly"`
+	Retention      int              `mapstructure:"retention" validate:"required,gt=0"`
+	PreProvisioned int              `mapstructure:"preProvisioned" validate:"required,gt=0"`
+	CleanupPolicy  CleanupPolicy    `mapstructure:"cleanupPolicy" validate:"required,oneof=drop detach"`
+	Convert        *ConvertSettings `mapstructure:"convert" validate:"omitempty"`
 }
 
 func (p Configuration) GeneratePartition(forDate time.Time) (Partition, error) {
