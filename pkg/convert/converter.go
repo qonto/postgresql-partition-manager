@@ -151,17 +151,44 @@ type VerifyOptions struct {
 }
 
 // Verify executes the verify phase: checks convergence between source and target.
+// Verify is purely informational and does NOT modify the migration state.
+// It can be called at any time regardless of the current phase.
 func (c *Converter) Verify(ctx context.Context, opts VerifyOptions) (*postgresql.VerifyResult, error) {
-	var result *postgresql.VerifyResult
+	startTime := time.Now()
 
-	err := c.executePhase(ctx, "verify", PhaseVerify, func(ctx context.Context) error {
-		var verifyErr error
-		result, verifyErr = c.runVerify(ctx, opts)
+	c.logger.Info("Operation started",
+		"operationID", c.operationID,
+		"phase", "verify",
+		"schema", c.config.Schema,
+		"table", c.config.Table,
+		"startTime", startTime.Format(time.RFC3339),
+		"dryRun", c.dryRun,
+	)
 
-		return verifyErr
-	})
+	result, err := c.runVerify(ctx, opts)
+	if err != nil {
+		c.logger.Error("Operation failed",
+			"operationID", c.operationID,
+			"phase", "verify",
+			"schema", c.config.Schema,
+			"table", c.config.Table,
+			"error", err.Error(),
+		)
 
-	return result, err
+		return nil, err
+	}
+
+	c.logger.Info("Operation completed",
+		"operationID", c.operationID,
+		"phase", "verify",
+		"schema", c.config.Schema,
+		"table", c.config.Table,
+		"startTime", startTime.Format(time.RFC3339),
+		"endTime", time.Now().Format(time.RFC3339),
+		"elapsed", time.Since(startTime),
+	)
+
+	return result, nil
 }
 
 // Cutover executes the cutover phase: atomically swaps source and target tables.

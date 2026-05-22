@@ -16,11 +16,14 @@ const (
 )
 
 // AllowedTransitions defines valid phase transitions.
+// Note: PhaseVerify is informational and does not modify state going forward,
+// but we define transitions from it to handle databases where "verify" was
+// previously persisted as the current phase.
 var AllowedTransitions = map[Phase][]Phase{
 	PhaseSetup:            {PhaseBackfill},
-	PhaseBackfill:         {PhaseReplay, PhaseBackfill},
-	PhaseReplay:           {PhaseVerify, PhaseReplay},
-	PhaseVerify:           {PhaseCutover, PhaseReplay, PhaseVerify},
+	PhaseBackfill:         {PhaseReplay, PhaseBackfill, PhaseCutover},
+	PhaseReplay:           {PhaseCutover, PhaseReplay},
+	PhaseVerify:           {PhaseCutover, PhaseReplay, PhaseBackfill},
 	PhaseCutover:          {PhaseCleanup, PhaseRollbackComplete},
 	PhaseRollbackComplete: {PhaseSetup},
 }

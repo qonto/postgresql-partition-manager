@@ -231,23 +231,6 @@ func TestConverter_Backfill_FromSetup_Succeeds(t *testing.T) {
 	}
 }
 
-func TestConverter_Cutover_FromBackfill_Fails(t *testing.T) {
-	db := &converterMockDB{
-		migrationState: &postgresql.MigrationState{
-			Schema: "public",
-			Table:  "events",
-			Phase:  string(PhaseBackfill),
-		},
-	}
-
-	converter := New(newTestLogger(), db, newTestConfig(), false)
-
-	err := converter.Cutover(context.Background())
-	if err == nil {
-		t.Fatal("expected Cutover from backfill to fail (invalid transition)")
-	}
-}
-
 func TestConverter_Replay_FromBackfill_Succeeds(t *testing.T) {
 	db := &converterMockDB{
 		migrationState: &postgresql.MigrationState{
