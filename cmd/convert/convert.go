@@ -23,6 +23,8 @@ func ConvertCmd() *cobra.Command {
 	convertCmd.AddCommand(CutoverCmd())
 	convertCmd.AddCommand(RollbackCmd())
 	convertCmd.AddCommand(CleanupCmd())
+	convertCmd.AddCommand(InitCmd())
+	convertCmd.AddCommand(DropMetadataCmd())
 
 	return convertCmd
 }

@@ -279,6 +279,8 @@ func TestConvertCmd_RegistersAllSubCommands(t *testing.T) {
 		"cutover",
 		"rollback",
 		"cleanup",
+		"init",
+		"drop-metadata",
 	}
 
 	for _, name := range expectedSubCommands {

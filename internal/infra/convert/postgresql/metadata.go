@@ -139,3 +139,29 @@ func (c *Client) DeleteMigrationState(schema, table string) error {
 
 	return nil
 }
+
+// DropMetadataTable drops the ppm_migration_metadata table entirely.
+func (c *Client) DropMetadataTable() error {
+	c.logger.Info("Dropping migration metadata table")
+
+	_, err := c.conn.Exec(c.ctx, "DROP TABLE IF EXISTS ppm_migration_metadata")
+	if err != nil {
+		return fmt.Errorf("failed to drop migration metadata table: %w", err)
+	}
+
+	return nil
+}
+
+// CountMigrationStates returns the number of rows in the ppm_migration_metadata table.
+// Returns 0 if the table does not exist.
+func (c *Client) CountMigrationStates() (int64, error) {
+	var count int64
+
+	err := c.conn.QueryRow(c.ctx, "SELECT COUNT(*) FROM ppm_migration_metadata").Scan(&count)
+	if err != nil {
+		// Table might not exist
+		return 0, fmt.Errorf("failed to count migration states: %w", err)
+	}
+
+	return count, nil
+}
