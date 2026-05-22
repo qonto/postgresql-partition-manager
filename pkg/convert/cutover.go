@@ -166,7 +166,24 @@ func (e *CutoverEngine) Cutover(ctx context.Context) error {
 		return ErrQueueNotEmpty
 	}
 
-	// Step 8: Drop referencing FKs from child tables
+	// Step 8: Lock child tables and drop referencing FKs
+	// We must lock child tables BEFORE dropping their FK constraints to prevent deadlocks.
+	// Without this, a concurrent transaction holding a lock on the child table and waiting
+	// for the source table (blocked by our ACCESS EXCLUSIVE) creates a deadlock cycle.
+	for _, fk := range referencingFKs {
+		childTable := e.getChildTableFromFK(fk)
+
+		e.logger.Info("Acquiring ACCESS EXCLUSIVE lock on child table",
+			"schema", e.schema,
+			"table", childTable,
+			"constraint", fk.Name,
+		)
+
+		if err := e.db.AcquireExclusiveLock(e.schema, childTable); err != nil {
+			return fmt.Errorf("failed to acquire ACCESS EXCLUSIVE lock on child table %s: %w", childTable, err)
+		}
+	}
+
 	for _, fk := range referencingFKs {
 		childTable := e.getChildTableFromFK(fk)
 
@@ -186,25 +203,13 @@ func (e *CutoverEngine) Cutover(ctx context.Context) error {
 		return fmt.Errorf("failed to rename target to source: %w", err)
 	}
 
-	// Step 10: Recreate FKs with NOT VALID pointing to new partitioned table
-	for _, fk := range referencingFKs {
-		childTable := e.getChildTableFromFK(fk)
-
-		// Recreate the FK pointing to the new partitioned table (now named sourceTable)
-		recreatedFK := postgresql.ForeignKeyDef{
-			Name:              fk.Name,
-			Columns:           fk.Columns,
-			ReferencedSchema:  e.schema,
-			ReferencedTable:   e.sourceTable,
-			ReferencedColumns: fk.ReferencedColumns,
-			OnDelete:          fk.OnDelete,
-			OnUpdate:          fk.OnUpdate,
-		}
-
-		if err := e.db.AddForeignKeyNotValid(e.schema, childTable, recreatedFK); err != nil {
-			return fmt.Errorf("failed to recreate FK %s with NOT VALID: %w", fk.Name, err)
-		}
-	}
+	// Step 10: Recreate FKs with NOT VALID pointing to new partitioned table.
+	// PostgreSQL requires a unique constraint matching the referenced columns for FK creation.
+	// On partitioned tables, unique constraints must include all partition columns.
+	// If the referenced columns don't match any existing unique constraint, we skip
+	// FK recreation and log a warning — the user must handle referential integrity
+	// at the application level or restructure the FK.
+	recreatedFKs := e.recreateReferencingFKs(referencingFKs)
 
 	// Step 11: Commit
 	if err := tx.Commit(ctx); err != nil {
@@ -222,7 +227,7 @@ func (e *CutoverEngine) Cutover(ctx context.Context) error {
 	)
 
 	// Step 12: Post-cutover operations (separate transactions, non-blocking)
-	if err := e.postCutover(ctx, referencingFKs); err != nil {
+	if err := e.postCutover(ctx, recreatedFKs); err != nil {
 		e.logger.Error("Post-cutover operations had errors (cutover itself succeeded)",
 			"schema", e.schema,
 			"table", e.sourceTable,
@@ -627,6 +632,80 @@ func (e *CutoverEngine) recordDroppedFKs(fks []postgresql.ForeignKeyDef) error {
 	}
 
 	return nil
+}
+
+// recreateReferencingFKs attempts to recreate referencing FKs with NOT VALID on the new
+// partitioned table. PostgreSQL partitioned tables require unique constraints to include
+// all partition columns, so FKs referencing a subset of the PK columns (e.g., just "id"
+// when PK is (id, created_at)) cannot be recreated. Those are skipped with a warning.
+// Returns the list of FKs that were successfully recreated (for post-cutover validation).
+func (e *CutoverEngine) recreateReferencingFKs(referencingFKs []postgresql.ForeignKeyDef) []postgresql.ForeignKeyDef {
+	// Get existing unique constraints on the new source table (partitioned) to determine
+	// which FKs can be recreated.
+	existingIndexes, err := e.db.GetTableIndexes(e.schema, e.sourceTable)
+	if err != nil {
+		e.logger.Warn("Could not get indexes on partitioned table, skipping all FK recreation",
+			"schema", e.schema,
+			"table", e.sourceTable,
+			"error", err,
+		)
+
+		return nil
+	}
+
+	// Build a set of column combinations that have unique constraints
+	uniqueSets := make(map[string]bool)
+	for _, idx := range existingIndexes {
+		if idx.IsUnique {
+			key := strings.Join(idx.Columns, ",")
+			uniqueSets[key] = true
+		}
+	}
+
+	var recreated []postgresql.ForeignKeyDef
+
+	for _, fk := range referencingFKs {
+		childTable := e.getChildTableFromFK(fk)
+		colKey := strings.Join(fk.ReferencedColumns, ",")
+
+		// Check if a matching unique constraint exists on the partitioned table
+		if !uniqueSets[colKey] {
+			e.logger.Warn("Skipping FK recreation — no matching unique constraint on partitioned table "+
+				"(PostgreSQL requires unique constraints on partitioned tables to include all partition columns)",
+				"schema", e.schema,
+				"childTable", childTable,
+				"constraint", fk.Name,
+				"referencedColumns", fk.ReferencedColumns,
+			)
+
+			continue
+		}
+
+		recreatedFK := postgresql.ForeignKeyDef{
+			Name:              fk.Name,
+			Columns:           fk.Columns,
+			ReferencedSchema:  e.schema,
+			ReferencedTable:   e.sourceTable,
+			ReferencedColumns: fk.ReferencedColumns,
+			OnDelete:          fk.OnDelete,
+			OnUpdate:          fk.OnUpdate,
+		}
+
+		if err := e.db.AddForeignKeyNotValid(e.schema, childTable, recreatedFK); err != nil {
+			e.logger.Warn("Failed to recreate referencing FK",
+				"schema", e.schema,
+				"childTable", childTable,
+				"constraint", fk.Name,
+				"error", err,
+			)
+
+			continue
+		}
+
+		recreated = append(recreated, fk)
+	}
+
+	return recreated
 }
 
 // getChildTableFromFK extracts the child table name from a ForeignKeyDef.
