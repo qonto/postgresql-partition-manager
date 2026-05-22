@@ -165,3 +165,64 @@ func (c *Client) CountMigrationStates() (int64, error) {
 
 	return count, nil
 }
+
+// ListMigrationStates returns all migration state records from the metadata table.
+// Returns an empty slice if the table is empty or does not exist.
+func (c *Client) ListMigrationStates() ([]MigrationState, error) {
+	query := `
+		SELECT
+			schema_name,
+			table_name,
+			phase,
+			last_backfill_pk,
+			last_replay_seq,
+			dropped_fks,
+			phase_started_at,
+			updated_at
+		FROM ppm_migration_metadata
+		ORDER BY schema_name, table_name`
+
+	rows, err := c.conn.Query(c.ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list migration states: %w", err)
+	}
+	defer rows.Close()
+
+	var states []MigrationState
+
+	for rows.Next() {
+		var state MigrationState
+		var droppedFKsJSON []byte
+		var lastBackfillPK []string
+
+		err := rows.Scan(
+			&state.Schema,
+			&state.Table,
+			&state.Phase,
+			&lastBackfillPK,
+			&state.LastReplaySeq,
+			&droppedFKsJSON,
+			&state.PhaseStartedAt,
+			&state.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan migration state: %w", err)
+		}
+
+		state.LastBackfillPK = lastBackfillPK
+
+		if len(droppedFKsJSON) > 0 {
+			if err := json.Unmarshal(droppedFKsJSON, &state.DroppedForeignKeys); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal dropped_fks: %w", err)
+			}
+		}
+
+		states = append(states, state)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating migration states: %w", err)
+	}
+
+	return states, nil
+}
