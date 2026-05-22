@@ -235,7 +235,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	require.NoError(t, err, "replay should succeed")
 
 	// Phase 4: Verify
-	result, err := converter.Verify(ctx)
+	result, err := converter.Verify(ctx, convert.VerifyOptions{})
 	require.NoError(t, err, "verify should succeed")
 	assert.True(t, result.ReadyForCutover, "should be ready for cutover")
 	assert.Equal(t, int64(0), result.ReplayLag, "replay lag should be zero")
@@ -385,7 +385,7 @@ func TestIntegration_LockTimeoutDuringCutover(t *testing.T) {
 	err = converter.Replay(ctx)
 	require.NoError(t, err)
 
-	_, err = converter.Verify(ctx)
+	_, err = converter.Verify(ctx, convert.VerifyOptions{})
 	require.NoError(t, err)
 
 	// Hold a lock on the source table from another connection to block cutover
@@ -429,7 +429,7 @@ func TestIntegration_RollbackAfterCutover(t *testing.T) {
 	err = converter.Replay(ctx)
 	require.NoError(t, err)
 
-	_, err = converter.Verify(ctx)
+	_, err = converter.Verify(ctx, convert.VerifyOptions{})
 	require.NoError(t, err)
 
 	err = converter.Cutover(ctx)
@@ -544,7 +544,7 @@ func TestIntegration_AdvisoryLockExclusivity(t *testing.T) {
 	err = converter.Replay(ctx)
 	require.NoError(t, err)
 
-	_, err = converter.Verify(ctx)
+	_, err = converter.Verify(ctx, convert.VerifyOptions{})
 	require.NoError(t, err)
 
 	// Hold the advisory lock from another connection
@@ -647,7 +647,7 @@ func TestIntegration_FKOIDCorrectness(t *testing.T) {
 	err = converter.Replay(ctx)
 	require.NoError(t, err)
 
-	_, err = converter.Verify(ctx)
+	_, err = converter.Verify(ctx, convert.VerifyOptions{})
 	require.NoError(t, err)
 
 	err = converter.Cutover(ctx)
@@ -712,7 +712,7 @@ func TestIntegration_QueueDrainCompleteness(t *testing.T) {
 	err = converter.Replay(ctx)
 	require.NoError(t, err)
 
-	_, err = converter.Verify(ctx)
+	_, err = converter.Verify(ctx, convert.VerifyOptions{})
 	require.NoError(t, err)
 
 	// The queue should be empty at this point, so cutover should succeed
@@ -749,7 +749,7 @@ func TestIntegration_PostCutoverAnalyze(t *testing.T) {
 	err = converter.Replay(ctx)
 	require.NoError(t, err)
 
-	_, err = converter.Verify(ctx)
+	_, err = converter.Verify(ctx, convert.VerifyOptions{})
 	require.NoError(t, err)
 
 	err = converter.Cutover(ctx)
@@ -798,7 +798,7 @@ func TestIntegration_CutoverRaceCondition(t *testing.T) {
 	err = converter.Replay(ctx)
 	require.NoError(t, err)
 
-	_, err = converter.Verify(ctx)
+	_, err = converter.Verify(ctx, convert.VerifyOptions{})
 	require.NoError(t, err)
 
 	// Insert more data just before cutover (will be in CDC queue)

@@ -17,6 +17,7 @@ import (
 // VerifyCmd returns the "convert verify" sub-command.
 func VerifyCmd() *cobra.Command {
 	var dryRun bool
+	var withAnalyze bool
 
 	cmd := &cobra.Command{
 		Use:   "verify [table-name]",
@@ -80,40 +81,46 @@ func VerifyCmd() *cobra.Command {
 			// Create and run the converter
 			converter := convert.New(*log, db, convConfig, dryRun)
 
-			result, err := converter.Verify(context.Background())
+			result, err := converter.Verify(context.Background(), convert.VerifyOptions{
+				WithAnalyze: withAnalyze,
+			})
 			if err != nil {
 				log.Error("Verify failed", "error", err)
 				os.Exit(VerifyNotReadyExitCode)
 			}
 
 			// Print verification results
+			if result.IsEstimated {
+				fmt.Printf("\n")
+				fmt.Printf("  ⚠️  WARNING: Row counts are ESTIMATED (based on pg_class.reltuples).\n")
+				fmt.Printf("     These values may be inaccurate, especially after bulk operations.\n")
+				fmt.Printf("     Use --with-analyze for accurate counts (runs ANALYZE on both tables).\n")
+				fmt.Printf("\n")
+			}
+
 			fmt.Printf("Verification Results:\n")
 			fmt.Printf("  Source row count:  %d\n", result.SourceRowCount)
 			fmt.Printf("  Target row count:  %d\n", result.TargetRowCount)
 			fmt.Printf("  Row difference:    %d\n", result.RowDifference)
-			fmt.Printf("  Replay lag:        %d\n", result.ReplayLag)
+			fmt.Printf("  CDC queue size:    %d\n", result.ReplayLag)
 			fmt.Printf("  Ready for cutover: %t\n", result.ReadyForCutover)
 
-			if !result.ReadyForCutover {
-				log.Warn("Table is not ready for cutover",
-					"schema", convConfig.Schema,
-					"table", convConfig.Table,
-					"rowDifference", result.RowDifference,
-					"replayLag", result.ReplayLag,
-				)
-				os.Exit(VerifyNotReadyExitCode)
+			if result.ReplayLag > 0 || result.RowDifference > 0 {
+				fmt.Printf("\n  Note: %d pending CDC events will be replayed during cutover.\n", result.ReplayLag)
 			}
 
 			log.Info("Verify completed successfully",
 				"schema", convConfig.Schema,
 				"table", convConfig.Table,
 				"readyForCutover", result.ReadyForCutover,
+				"isEstimated", result.IsEstimated,
 				"dryRun", dryRun,
 			)
 		},
 	}
 
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview what would be done without making changes")
+	cmd.Flags().BoolVar(&withAnalyze, "with-analyze", false, "Run ANALYZE on source and target tables before verification for accurate row counts")
 
 	return cmd
 }

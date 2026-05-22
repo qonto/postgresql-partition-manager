@@ -279,7 +279,7 @@ func TestConverter_Verify_FromReplay_Succeeds(t *testing.T) {
 
 	converter := New(newTestLogger(), db, newTestConfig(), false)
 
-	result, err := converter.Verify(context.Background())
+	result, err := converter.Verify(context.Background(), VerifyOptions{})
 	if err != nil {
 		t.Fatalf("expected Verify from replay to succeed, got: %v", err)
 	}

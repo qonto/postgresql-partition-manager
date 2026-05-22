@@ -44,4 +44,5 @@ type VerifyResult struct {
 	RowDifference   int64
 	ReplayLag       int64
 	ReadyForCutover bool
+	IsEstimated     bool
 }

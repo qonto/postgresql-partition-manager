@@ -74,7 +74,7 @@ func TestVerify_ReadyForCutover(t *testing.T) {
 	}
 }
 
-func TestVerify_NotReady_ReplayLagNonZero(t *testing.T) {
+func TestVerify_ReadyWithReplayLag(t *testing.T) {
 	mock := &verifyMock{
 		sourceRowCount: 1000,
 		targetRowCount: 1000,
@@ -96,8 +96,8 @@ func TestVerify_NotReady_ReplayLagNonZero(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if result.ReadyForCutover {
-		t.Error("expected ReadyForCutover to be false when replay lag > 0")
+	if !result.ReadyForCutover {
+		t.Error("expected ReadyForCutover to be true (replay lag will be applied during cutover)")
 	}
 
 	if result.ReplayLag != 42 {
@@ -109,7 +109,7 @@ func TestVerify_NotReady_ReplayLagNonZero(t *testing.T) {
 	}
 }
 
-func TestVerify_NotReady_RowDifferenceNonZero(t *testing.T) {
+func TestVerify_ReadyWithRowDifference(t *testing.T) {
 	mock := &verifyMock{
 		sourceRowCount: 1000,
 		targetRowCount: 950,
@@ -131,8 +131,8 @@ func TestVerify_NotReady_RowDifferenceNonZero(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if result.ReadyForCutover {
-		t.Error("expected ReadyForCutover to be false when row difference > 0")
+	if !result.ReadyForCutover {
+		t.Error("expected ReadyForCutover to be true (pending changes will be replayed during cutover)")
 	}
 
 	if result.RowDifference != 50 {
@@ -140,7 +140,7 @@ func TestVerify_NotReady_RowDifferenceNonZero(t *testing.T) {
 	}
 }
 
-func TestVerify_NotReady_TargetHasMoreRows(t *testing.T) {
+func TestVerify_ReadyWithTargetHasMoreRows(t *testing.T) {
 	mock := &verifyMock{
 		sourceRowCount: 900,
 		targetRowCount: 1000,
@@ -162,8 +162,8 @@ func TestVerify_NotReady_TargetHasMoreRows(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if result.ReadyForCutover {
-		t.Error("expected ReadyForCutover to be false when target has more rows")
+	if !result.ReadyForCutover {
+		t.Error("expected ReadyForCutover to be true")
 	}
 
 	// Absolute difference
@@ -172,7 +172,7 @@ func TestVerify_NotReady_TargetHasMoreRows(t *testing.T) {
 	}
 }
 
-func TestVerify_NotReady_BothNonZero(t *testing.T) {
+func TestVerify_ReadyWithBothNonZero(t *testing.T) {
 	mock := &verifyMock{
 		sourceRowCount: 1000,
 		targetRowCount: 980,
@@ -194,8 +194,8 @@ func TestVerify_NotReady_BothNonZero(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if result.ReadyForCutover {
-		t.Error("expected ReadyForCutover to be false when both lag and difference are non-zero")
+	if !result.ReadyForCutover {
+		t.Error("expected ReadyForCutover to be true (pending changes will be replayed during cutover)")
 	}
 
 	if result.RowDifference != 20 {

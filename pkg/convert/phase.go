@@ -20,7 +20,7 @@ var AllowedTransitions = map[Phase][]Phase{
 	PhaseSetup:            {PhaseBackfill},
 	PhaseBackfill:         {PhaseReplay, PhaseBackfill},
 	PhaseReplay:           {PhaseVerify, PhaseReplay},
-	PhaseVerify:           {PhaseCutover, PhaseReplay},
+	PhaseVerify:           {PhaseCutover, PhaseReplay, PhaseVerify},
 	PhaseCutover:          {PhaseCleanup, PhaseRollbackComplete},
 	PhaseRollbackComplete: {PhaseSetup},
 }

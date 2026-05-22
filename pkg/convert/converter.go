@@ -145,13 +145,18 @@ func (c *Converter) Replay(ctx context.Context) error {
 	})
 }
 
+// VerifyOptions holds options for the verify phase.
+type VerifyOptions struct {
+	WithAnalyze bool
+}
+
 // Verify executes the verify phase: checks convergence between source and target.
-func (c *Converter) Verify(ctx context.Context) (*postgresql.VerifyResult, error) {
+func (c *Converter) Verify(ctx context.Context, opts VerifyOptions) (*postgresql.VerifyResult, error) {
 	var result *postgresql.VerifyResult
 
 	err := c.executePhase(ctx, "verify", PhaseVerify, func(ctx context.Context) error {
 		var verifyErr error
-		result, verifyErr = c.runVerify(ctx)
+		result, verifyErr = c.runVerify(ctx, opts)
 
 		return verifyErr
 	})
@@ -697,13 +702,14 @@ func (c *Converter) runReplay(ctx context.Context) error {
 }
 
 // runVerify executes the verification engine.
-func (c *Converter) runVerify(ctx context.Context) (*postgresql.VerifyResult, error) {
+func (c *Converter) runVerify(ctx context.Context, opts VerifyOptions) (*postgresql.VerifyResult, error) {
 	targetTable := c.config.Table + "_partitioned"
 
 	engine := NewVerifyEngine(c.logger, c.db, VerifyEngineConfig{
 		Schema:      c.config.Schema,
 		SourceTable: c.config.Table,
 		TargetTable: targetTable,
+		WithAnalyze: opts.WithAnalyze,
 	})
 
 	return engine.Verify(ctx)
