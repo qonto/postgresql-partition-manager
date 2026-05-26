@@ -759,11 +759,12 @@ func (c *Converter) runCutover(ctx context.Context) error {
 	targetTable := c.config.Table + "_partitioned"
 
 	engine := NewCutoverEngine(c.logger, c.db, CutoverEngineConfig{
-		Schema:      c.config.Schema,
-		SourceTable: c.config.Table,
-		TargetTable: targetTable,
-		PKColumns:   pkColumns,
-		BatchSize:   c.config.Convert.ReplayBatchSize,
+		Schema:       c.config.Schema,
+		SourceTable:  c.config.Table,
+		TargetTable:  targetTable,
+		PKColumns:    pkColumns,
+		PartitionKey: c.config.PartitionKey,
+		BatchSize:    c.config.Convert.ReplayBatchSize,
 	})
 
 	return engine.Cutover(ctx)
@@ -779,11 +780,12 @@ func (c *Converter) runRollback(ctx context.Context) error {
 	targetTable := c.config.Table + "_partitioned"
 
 	engine := NewCutoverEngine(c.logger, c.db, CutoverEngineConfig{
-		Schema:      c.config.Schema,
-		SourceTable: c.config.Table,
-		TargetTable: targetTable,
-		PKColumns:   pkColumns,
-		BatchSize:   c.config.Convert.ReplayBatchSize,
+		Schema:       c.config.Schema,
+		SourceTable:  c.config.Table,
+		TargetTable:  targetTable,
+		PKColumns:    pkColumns,
+		PartitionKey: c.config.PartitionKey,
+		BatchSize:    c.config.Convert.ReplayBatchSize,
 	})
 
 	return engine.Rollback(ctx)

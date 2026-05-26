@@ -28,22 +28,24 @@ var ErrRollbackNotApplicable = ErrSourceOldNotFound
 // final replay drain, empty queue assertion, rename swap, FK recreation,
 // and post-cutover operations (ANALYZE, index rename, FK validation).
 type CutoverEngine struct {
-	db          ConvertDBClient
-	logger      slog.Logger
-	schema      string
-	sourceTable string
-	targetTable string
-	pkColumns   []string
-	batchSize   int // replay batch size for final drain
+	db           ConvertDBClient
+	logger       slog.Logger
+	schema       string
+	sourceTable  string
+	targetTable  string
+	pkColumns    []string
+	partitionKey string
+	batchSize    int // replay batch size for final drain
 }
 
 // CutoverEngineConfig holds the configuration for creating a CutoverEngine.
 type CutoverEngineConfig struct {
-	Schema      string
-	SourceTable string
-	TargetTable string
-	PKColumns   []string
-	BatchSize   int // replay batch size for final drain
+	Schema       string
+	SourceTable  string
+	TargetTable  string
+	PKColumns    []string
+	PartitionKey string
+	BatchSize    int // replay batch size for final drain
 }
 
 // NewCutoverEngine creates a new CutoverEngine with the given configuration.
@@ -54,13 +56,14 @@ func NewCutoverEngine(logger slog.Logger, db ConvertDBClient, cfg CutoverEngineC
 	}
 
 	return &CutoverEngine{
-		db:          db,
-		logger:      logger,
-		schema:      cfg.Schema,
-		sourceTable: cfg.SourceTable,
-		targetTable: cfg.TargetTable,
-		pkColumns:   cfg.PKColumns,
-		batchSize:   batchSize,
+		db:           db,
+		logger:       logger,
+		schema:       cfg.Schema,
+		sourceTable:  cfg.SourceTable,
+		targetTable:  cfg.TargetTable,
+		pkColumns:    cfg.PKColumns,
+		partitionKey: cfg.PartitionKey,
+		batchSize:    batchSize,
 	}
 }
 
@@ -653,47 +656,36 @@ func (e *CutoverEngine) recordDroppedFKs(fks []postgresql.ForeignKeyDef) error {
 }
 
 // recreateReferencingFKs attempts to recreate referencing FKs with NOT VALID on the new
-// partitioned table. PostgreSQL partitioned tables require unique constraints to include
-// all partition columns, so FKs referencing a subset of the PK columns (e.g., just "id"
-// when PK is (id, created_at)) cannot be recreated. Those are skipped with a warning.
+// partitioned table.
+//
+// PostgreSQL requires that any unique constraint on a partitioned table includes all
+// partition key columns. As a consequence, FKs that reference a partitioned table can only
+// target column sets that match an existing unique constraint on the parent table.
+//
+// Currently, only one FK shape is supported for automatic recreation: when the FK
+// referenced columns are exactly the partition key column. In that case the partitioned
+// table always exposes a unique constraint matching those columns (the partition key
+// is required to be part of the PK / any unique index, so a single-column partition key
+// PK trivially provides it).
+//
+// Other shapes (composite PK including the partition key, FK referencing a non-partition-
+// key column, etc.) are skipped with a warning. Support for those will come later.
+//
 // Returns the list of FKs that were successfully recreated (for post-cutover validation).
 func (e *CutoverEngine) recreateReferencingFKs(referencingFKs []postgresql.ForeignKeyDef) []postgresql.ForeignKeyDef {
-	// Get existing unique constraints on the new source table (partitioned) to determine
-	// which FKs can be recreated.
-	existingIndexes, err := e.db.GetTableIndexes(e.schema, e.sourceTable)
-	if err != nil {
-		e.logger.Warn("Could not get indexes on partitioned table, skipping all FK recreation",
-			"schema", e.schema,
-			"table", e.sourceTable,
-			"error", err,
-		)
-
-		return nil
-	}
-
-	// Build a set of column combinations that have unique constraints
-	uniqueSets := make(map[string]bool)
-	for _, idx := range existingIndexes {
-		if idx.IsUnique {
-			key := strings.Join(idx.Columns, ",")
-			uniqueSets[key] = true
-		}
-	}
-
 	var recreated []postgresql.ForeignKeyDef
 
 	for _, fk := range referencingFKs {
 		childTable := e.getChildTableFromFK(fk)
-		colKey := strings.Join(fk.ReferencedColumns, ",")
 
-		// Check if a matching unique constraint exists on the partitioned table
-		if !uniqueSets[colKey] {
-			e.logger.Warn("Skipping FK recreation — no matching unique constraint on partitioned table "+
-				"(PostgreSQL requires unique constraints on partitioned tables to include all partition columns)",
+		if !e.isFKReferencingPartitionKey(fk) {
+			e.logger.Warn("Skipping FK recreation — only FKs referencing exactly the partition key column "+
+				"are supported today (other FK shapes will be supported in a future release)",
 				"schema", e.schema,
 				"childTable", childTable,
 				"constraint", fk.Name,
 				"referencedColumns", fk.ReferencedColumns,
+				"partitionKey", e.partitionKey,
 			)
 
 			continue
@@ -708,6 +700,13 @@ func (e *CutoverEngine) recreateReferencingFKs(referencingFKs []postgresql.Forei
 			OnDelete:          fk.OnDelete,
 			OnUpdate:          fk.OnUpdate,
 		}
+
+		e.logger.Info("Recreating referencing FK on partitioned table (FK matches partition key)",
+			"schema", e.schema,
+			"childTable", childTable,
+			"constraint", fk.Name,
+			"referencedColumns", fk.ReferencedColumns,
+		)
 
 		if err := e.db.AddForeignKeyNotValid(e.schema, childTable, recreatedFK); err != nil {
 			e.logger.Warn("Failed to recreate referencing FK",
@@ -724,6 +723,23 @@ func (e *CutoverEngine) recreateReferencingFKs(referencingFKs []postgresql.Forei
 	}
 
 	return recreated
+}
+
+// isFKReferencingPartitionKey reports whether the FK referenced columns are exactly
+// the partition key column (a single column matching e.partitionKey).
+//
+// This is the only FK shape currently supported for automatic recreation on the new
+// partitioned table — see recreateReferencingFKs for context.
+func (e *CutoverEngine) isFKReferencingPartitionKey(fk postgresql.ForeignKeyDef) bool {
+	if e.partitionKey == "" {
+		return false
+	}
+
+	if len(fk.ReferencedColumns) != 1 {
+		return false
+	}
+
+	return fk.ReferencedColumns[0] == e.partitionKey
 }
 
 // getChildTableFromFK extracts the child table name from a ForeignKeyDef.
