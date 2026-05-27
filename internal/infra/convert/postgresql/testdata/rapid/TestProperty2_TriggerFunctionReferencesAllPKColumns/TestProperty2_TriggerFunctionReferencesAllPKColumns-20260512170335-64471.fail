@@ -1,0 +1,22 @@
+# 2026/05/12 17:03:35.592149 [TestProperty2_TriggerFunctionReferencesAllPKColumns] [rapid] draw schema: "a"
+# 2026/05/12 17:03:35.592152 [TestProperty2_TriggerFunctionReferencesAllPKColumns] [rapid] draw table: "a"
+# 2026/05/12 17:03:35.592153 [TestProperty2_TriggerFunctionReferencesAllPKColumns] [rapid] draw numPKCols: 1
+# 2026/05/12 17:03:35.592154 [TestProperty2_TriggerFunctionReferencesAllPKColumns] [rapid] draw pkCol0: "a"
+# 2026/05/12 17:03:35.592157 [TestProperty2_TriggerFunctionReferencesAllPKColumns] expected 2 OLD references (columns + RETURN OLD), found 1
+# 
+v0.4.8#4339961862844452146
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

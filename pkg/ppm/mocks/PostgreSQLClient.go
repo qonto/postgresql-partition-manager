@@ -275,6 +275,30 @@ func (_m *PostgreSQLClient) ListPartitions(schema string, table string) ([]postg
 	return r0, r1
 }
 
+// IsConversionInProgress provides a mock function with given fields: schema, table
+func (_m *PostgreSQLClient) IsConversionInProgress(schema string, table string) (bool, error) {
+	ret := _m.Called(schema, table)
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) (bool, error)); ok {
+		return rf(schema, table)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) bool); ok {
+		r0 = rf(schema, table)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(schema, table)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // NewPostgreSQLClient creates a new instance of PostgreSQLClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewPostgreSQLClient(t interface {

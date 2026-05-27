@@ -32,13 +32,22 @@ func (p *PPM) CheckPartitions() error {
 	partitionContainsAnError := false
 
 	for name, config := range p.partitions {
+		if p.skipConversionInProgress(name, config) {
+			continue
+		}
+
 		p.logger.Info("Checking partition", "partition", name)
 
 		err := p.checkPartition(config)
 		if err != nil {
 			partitionContainsAnError = true
 
-			p.logger.Error(err.Error(), "schema", config.Schema, "table", config.Table)
+			if errors.Is(err, postgresql.ErrTableIsNotPartitioned) {
+				p.logger.Error(err.Error(), "schema", config.Schema, "table", config.Table)
+				p.logger.Info("Table is not partitioned. Run 'ppm convert setup "+name+"' to start the conversion process to a partitioned table", "partition", name)
+			} else {
+				p.logger.Error(err.Error(), "schema", config.Schema, "table", config.Table)
+			}
 		}
 	}
 

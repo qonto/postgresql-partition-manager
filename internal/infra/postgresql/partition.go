@@ -3,6 +3,7 @@ package postgresql
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -214,4 +215,22 @@ SELECT c_idx_child.relname
 	}
 
 	return nil
+}
+
+// GetPartitionKeyRange returns the minimum and maximum values of the partition key column
+// in the specified table. This is used to determine the range of partitions needed.
+func (p Postgres) GetPartitionKeyRange(schema, table, partitionKey string) (min, max time.Time, err error) {
+	query := fmt.Sprintf(
+		"SELECT MIN(%s), MAX(%s) FROM %s",
+		pgx.Identifier{partitionKey}.Sanitize(),
+		pgx.Identifier{partitionKey}.Sanitize(),
+		pgx.Identifier{schema, table}.Sanitize(),
+	)
+
+	err = p.conn.QueryRow(p.ctx, query).Scan(&min, &max)
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("failed to get partition key range: %w", err)
+	}
+
+	return min, max, nil
 }

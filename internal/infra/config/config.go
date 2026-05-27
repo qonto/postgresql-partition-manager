@@ -18,6 +18,23 @@ type Config struct {
 	Partitions       map[string]partition.Configuration `mapstructure:"partitions" validate:"required,dive,keys,endkeys,required"`
 }
 
+// GetConvertConfig looks up a table's configuration for conversion.
+// Returns the partition config with convert settings (defaults applied).
+func (c *Config) GetConvertConfig(tableName string) (partition.Configuration, error) {
+	cfg, ok := c.Partitions[tableName]
+	if !ok {
+		return partition.Configuration{}, fmt.Errorf("partition %q not found in configuration", tableName)
+	}
+
+	// Ensure Convert settings exist with defaults applied
+	if cfg.Convert == nil {
+		cfg.Convert = &partition.ConvertSettings{}
+	}
+	cfg.Convert.ApplyDefaults()
+
+	return cfg, nil
+}
+
 func (c *Config) Check() error {
 	validate := validator.New()
 

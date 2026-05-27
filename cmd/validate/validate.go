@@ -23,24 +23,47 @@ func ValidateCmd() *cobra.Command {
 		Long:             `Check configuration file and exit with an error if configuration is invalid`,
 		TraverseChildren: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			var config config.Config
+			var cfg config.Config
 
-			if err := viper.Unmarshal(&config); err != nil {
+			if err := viper.Unmarshal(&cfg); err != nil {
 				fmt.Printf("Unable to load configuration, %v", err)
 				os.Exit(InvalidConfigurationExitCode)
 			}
 
-			logger, err := logger.New(config.Debug, config.LogFormat)
+			log, err := logger.New(cfg.Debug, cfg.LogFormat)
 			if err != nil {
 				fmt.Println("ERROR: Fail to initialize logger: %w", err)
 				os.Exit(InternalErrorExitCode)
 			}
 
-			if err := config.Check(); err != nil {
+			if err := cfg.Check(); err != nil {
 				os.Exit(InvalidConfigurationExitCode)
 			}
 
-			logger.Info("Configuration is valid")
+			log.Info("Configuration is valid")
+
+			for name, partition := range cfg.Partitions {
+				log.Info("Partition configuration",
+					"partition", name,
+					"schema", partition.Schema,
+					"table", partition.Table,
+					"partitionKey", partition.PartitionKey,
+					"interval", partition.Interval,
+					"retention", partition.Retention,
+					"preProvisioned", partition.PreProvisioned,
+					"cleanupPolicy", partition.CleanupPolicy,
+				)
+
+				if partition.Convert != nil {
+					log.Info("Convert settings",
+						"partition", name,
+						"backfillBatchSize", partition.Convert.BackfillBatchSize,
+						"replayBatchSize", partition.Convert.ReplayBatchSize,
+						"lockTimeout", partition.Convert.LockTimeout,
+						"statementTimeout", partition.Convert.StatementTimeout,
+					)
+				}
+			}
 		},
 	}
 

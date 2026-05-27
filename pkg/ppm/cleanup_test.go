@@ -74,6 +74,7 @@ func TestCleanupPartitions(t *testing.T) {
 			logger, postgreSQLMock := setupMocks(t) // Reset mock on every test case
 
 			for _, partitionConfiguration := range tc.partitions {
+				postgreSQLMock.On("IsConversionInProgress", partitionConfiguration.Schema, partitionConfiguration.Table).Return(false, nil).Once()
 				postgreSQLMock.On("ListPartitions", partitionConfiguration.Schema, partitionConfiguration.Table).Return(partitionResultToPartition(t, tc.existingPartitions), nil).Once()
 
 				for _, p := range tc.expectedRemovedPartitions {
@@ -115,6 +116,11 @@ func TestCleanupPartitionsFailover(t *testing.T) {
 	}
 
 	logger, postgreSQLMock := setupMocks(t)
+
+	// Mock IsConversionInProgress for all partitions (no conversion in progress)
+	for _, config := range configuration {
+		postgreSQLMock.On("IsConversionInProgress", config.Schema, config.Table).Return(false, nil).Once()
+	}
 
 	for _, config := range configuration {
 		dayBeforeYesterdayPartition, _ := config.GeneratePartition(dayBeforeYesterday)

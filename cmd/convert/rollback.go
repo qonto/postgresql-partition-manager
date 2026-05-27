@@ -1,0 +1,110 @@
+package convert
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+
+	"github.com/qonto/postgresql-partition-manager/internal/infra/config"
+	convertpg "github.com/qonto/postgresql-partition-manager/internal/infra/convert/postgresql"
+	"github.com/qonto/postgresql-partition-manager/internal/infra/logger"
+	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
+	"github.com/qonto/postgresql-partition-manager/pkg/convert"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+)
+
+// RollbackCmd returns the "convert rollback" sub-command.
+func RollbackCmd() *cobra.Command {
+	var dryRun bool
+
+	cmd := &cobra.Command{
+		Use:   "rollback [table-name]",
+		Short: "Reverse a completed cutover",
+		Long:  "Restore the original table by reversing the cutover rename swap",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			tableName := args[0]
+
+			var cfg config.Config
+
+			if err := viper.Unmarshal(&cfg); err != nil {
+				fmt.Println("ERROR: Unable to load configuration:", err)
+				os.Exit(InvalidConfigurationExitCode)
+			}
+
+			if err := cfg.Check(); err != nil {
+				os.Exit(InvalidConfigurationExitCode)
+			}
+
+			log, err := logger.New(cfg.Debug, cfg.LogFormat)
+			if err != nil {
+				fmt.Println("ERROR: Failed to initialize logger:", err)
+				os.Exit(InternalErrorExitCode)
+			}
+
+			// Look up the partition configuration by table name (with convert defaults applied)
+			convConfig, err := cfg.GetConvertConfig(tableName)
+			if err != nil {
+				log.Error(err.Error())
+				os.Exit(InvalidConfigurationExitCode)
+			}
+
+			// Connect to the database
+			databaseConfiguration := postgresql.ConnectionSettings{
+				URL:              cfg.ConnectionURL,
+				LockTimeout:      cfg.LockTimeout,
+				StatementTimeout: cfg.StatementTimeout,
+			}
+
+			conn, err := postgresql.GetDatabaseConnection(databaseConfiguration)
+			if err != nil {
+				log.Error("Could not connect to database", "error", err)
+				os.Exit(DatabaseErrorExitCode)
+			}
+
+			log.Info("Connected to database",
+				"url", convert.RedactConnectionURL(cfg.ConnectionURL),
+			)
+
+			// Create the convert DB client with conversion-specific timeouts
+			db := convertpg.NewWithTimeouts(*log, conn, convConfig.Convert.LockTimeout, convConfig.Convert.StatementTimeout)
+
+			// Ensure metadata table exists
+			if err := db.EnsureMetadataTable(); err != nil {
+				log.Error("Failed to ensure metadata table", "error", err)
+				os.Exit(DatabaseErrorExitCode)
+			}
+
+			// Create and run the converter
+			converter := convert.New(*log, db, convConfig, dryRun)
+
+			err = converter.Rollback(context.Background())
+			if err != nil {
+				if errors.Is(err, convert.ErrLockTimeout) {
+					log.Error("Lock timeout during rollback", "error", err)
+					os.Exit(LockTimeoutExitCode)
+				}
+
+				if errors.Is(err, convert.ErrRollbackNotApplicable) {
+					log.Error("Rollback not applicable", "error", err)
+					os.Exit(RollbackNotApplicableExitCode)
+				}
+
+				log.Error("Rollback failed", "error", err)
+				os.Exit(RollbackFailedExitCode)
+			}
+
+			log.Info("Rollback completed successfully",
+				"schema", convConfig.Schema,
+				"table", convConfig.Table,
+				"dryRun", dryRun,
+			)
+		},
+	}
+
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview what would be done without making changes")
+
+	return cmd
+}
