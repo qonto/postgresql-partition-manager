@@ -1,0 +1,5 @@
+# 2026/05/27 23:10:55.973359 [TestProperty2_PreservationByDefaultIdentityObservation] [rapid] draw useCompositePK: false
+# 2026/05/27 23:10:56.862628 [TestProperty2_PreservationByDefaultIdentityObservation] Preservation property violated for BY DEFAULT identity column: identity_generation was "BY DEFAULT" before cutover but "" after cutover. BY DEFAULT identity columns should be preserved by cutover.
+# 
+v0.4.8#8685729405262787546
+0x0
