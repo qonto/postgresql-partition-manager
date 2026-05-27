@@ -8,11 +8,12 @@ import (
 
 // ColumnDef represents a column definition from a table schema.
 type ColumnDef struct {
-	Name         string
-	DataType     string
-	IsNullable   bool
-	DefaultValue *string
-	IsGenerated  bool
+	Name               string
+	DataType           string
+	IsNullable         bool
+	DefaultValue       *string
+	IsGenerated        bool
+	IdentityGeneration string // identity_generation from information_schema.columns: 'ALWAYS', 'BY DEFAULT', or ''
 }
 
 // IndexDef represents an index definition from a table.
@@ -94,7 +95,8 @@ func (p Postgres) GetTableColumns(schema, table string) ([]ColumnDef, error) {
 			col.data_type,
 			col.is_nullable = 'YES' AS is_nullable,
 			col.column_default,
-			COALESCE(col.is_generated = 'ALWAYS', false) OR COALESCE(col.generation_expression IS NOT NULL, false) AS is_generated
+			COALESCE(col.is_generated = 'ALWAYS', false) OR COALESCE(col.generation_expression IS NOT NULL, false) AS is_generated,
+			COALESCE(col.identity_generation, '') AS identity_generation
 		FROM information_schema.columns col
 		WHERE col.table_schema = $1
 			AND col.table_name = $2
@@ -109,7 +111,7 @@ func (p Postgres) GetTableColumns(schema, table string) ([]ColumnDef, error) {
 	var columns []ColumnDef
 	for rows.Next() {
 		var col ColumnDef
-		if err := rows.Scan(&col.Name, &col.DataType, &col.IsNullable, &col.DefaultValue, &col.IsGenerated); err != nil {
+		if err := rows.Scan(&col.Name, &col.DataType, &col.IsNullable, &col.DefaultValue, &col.IsGenerated, &col.IdentityGeneration); err != nil {
 			return nil, fmt.Errorf("failed to scan column definition: %w", err)
 		}
 		columns = append(columns, col)

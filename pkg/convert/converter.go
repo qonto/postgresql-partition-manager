@@ -91,6 +91,11 @@ type ConvertDBClient interface {
 	DropCDCQueue(schema, table string) error
 	ReassignSequences(schema, oldTable, newTable string) error
 
+	// Identity column operations
+	GetIdentityColumns(schema, table string) ([]postgresql.IdentityColumnInfo, error)
+	RestoreIdentityGeneration(schema, table, column string) error
+	RestoreIdentityGenerationWithStrategy(schema, table, column, strategy string) error
+
 	// Transaction management
 	BeginTx(ctx context.Context) (postgresql.Tx, error)
 }

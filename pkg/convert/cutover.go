@@ -213,6 +213,27 @@ func (e *CutoverEngine) Cutover(ctx context.Context) error {
 		}
 	}
 
+	// Capture identity columns BEFORE the rename swap.
+	// After the rename, the source table becomes source_old and is no longer accessible
+	// under its original name. We need this info for postCutover identity restoration.
+	identityColumns, err := e.db.GetIdentityColumns(e.schema, e.sourceTable)
+	if err != nil {
+		// Log warning but do NOT fail the cutover — identity restoration is best-effort (requirement 3.4)
+		e.logger.Warn("Failed to capture identity columns before rename swap (identity restoration will be skipped)",
+			"schema", e.schema,
+			"table", e.sourceTable,
+			"error", err,
+		)
+
+		identityColumns = nil
+	} else if len(identityColumns) > 0 {
+		e.logger.Info("Captured identity columns for post-cutover restoration",
+			"schema", e.schema,
+			"table", e.sourceTable,
+			"columnCount", len(identityColumns),
+		)
+	}
+
 	// Step 9: Rename swap (source → source_old, target → source)
 	sourceOldName := e.sourceTable + "_old"
 
@@ -248,7 +269,7 @@ func (e *CutoverEngine) Cutover(ctx context.Context) error {
 	)
 
 	// Step 12: Post-cutover operations (separate transactions, non-blocking)
-	if err := e.postCutover(ctx, recreatedFKs); err != nil {
+	if err := e.postCutover(ctx, recreatedFKs, identityColumns); err != nil {
 		e.logger.Error("Post-cutover operations had errors (cutover itself succeeded)",
 			"schema", e.schema,
 			"table", e.sourceTable,
@@ -388,8 +409,8 @@ func (e *CutoverEngine) Rollback(ctx context.Context) error {
 }
 
 // postCutover performs post-cutover operations in separate transactions:
-// ANALYZE, rename indexes, VALIDATE CONSTRAINT.
-func (e *CutoverEngine) postCutover(ctx context.Context, referencingFKs []postgresql.ForeignKeyDef) error {
+// ANALYZE, rename indexes, VALIDATE CONSTRAINT, restore identity generation.
+func (e *CutoverEngine) postCutover(ctx context.Context, referencingFKs []postgresql.ForeignKeyDef, identityColumns []postgresql.IdentityColumnInfo) error {
 	// ANALYZE the new partitioned table (Requirement 7.9)
 	e.logger.Info("Running ANALYZE on new partitioned table", "schema", e.schema, "table", e.sourceTable)
 
@@ -414,6 +435,31 @@ func (e *CutoverEngine) postCutover(ctx context.Context, referencingFKs []postgr
 
 		if err := e.db.ValidateForeignKey(e.schema, childTable, fk.Name); err != nil {
 			return fmt.Errorf("failed to validate FK %s on %s: %w", fk.Name, childTable, err)
+		}
+	}
+
+	// Restore identity generation for columns that had identity attributes (Requirements 2.1, 2.2, 3.1, 3.2, 3.3, 3.4)
+	// Errors are non-blocking since the rename swap already committed.
+	if len(identityColumns) > 0 {
+		for _, col := range identityColumns {
+			if err := e.db.RestoreIdentityGenerationWithStrategy(e.schema, e.sourceTable, col.ColumnName, col.IdentityGeneration); err != nil {
+				e.logger.Warn("Failed to restore identity generation (non-blocking)",
+					"schema", e.schema,
+					"table", e.sourceTable,
+					"column", col.ColumnName,
+					"strategy", col.IdentityGeneration,
+					"error", err,
+				)
+
+				continue
+			}
+
+			e.logger.Info("Restored identity generation",
+				"schema", e.schema,
+				"table", e.sourceTable,
+				"column", col.ColumnName,
+				"strategy", col.IdentityGeneration,
+			)
 		}
 	}
 

@@ -18,11 +18,11 @@ func TestGetTableColumns(t *testing.T) {
 
 	t.Run("returns columns with correct definitions", func(t *testing.T) {
 		defaultVal := "now()"
-		rows := mock.NewRows([]string{"column_name", "data_type", "is_nullable", "column_default", "is_generated"}).
-			AddRow("id", "bigint", false, nil, false).
-			AddRow("name", "text", true, nil, false).
-			AddRow("created_at", "timestamp with time zone", false, &defaultVal, false).
-			AddRow("computed", "integer", false, nil, true)
+		rows := mock.NewRows([]string{"column_name", "data_type", "is_nullable", "column_default", "is_generated", "identity_generation"}).
+			AddRow("id", "bigint", false, nil, false, "ALWAYS").
+			AddRow("name", "text", true, nil, false, "").
+			AddRow("created_at", "timestamp with time zone", false, &defaultVal, false, "").
+			AddRow("computed", "integer", false, nil, true, "")
 
 		mock.ExpectQuery(query).WithArgs(schema, table).WillReturnRows(rows)
 		columns, err := p.GetTableColumns(schema, table)
@@ -35,11 +35,13 @@ func TestGetTableColumns(t *testing.T) {
 		assert.False(t, columns[0].IsNullable)
 		assert.Nil(t, columns[0].DefaultValue)
 		assert.False(t, columns[0].IsGenerated)
+		assert.Equal(t, "ALWAYS", columns[0].IdentityGeneration)
 
 		assert.Equal(t, "name", columns[1].Name)
 		assert.Equal(t, "text", columns[1].DataType)
 		assert.True(t, columns[1].IsNullable)
 		assert.Nil(t, columns[1].DefaultValue)
+		assert.Equal(t, "", columns[1].IdentityGeneration)
 
 		assert.Equal(t, "created_at", columns[2].Name)
 		assert.Equal(t, "timestamp with time zone", columns[2].DataType)
@@ -52,7 +54,7 @@ func TestGetTableColumns(t *testing.T) {
 	})
 
 	t.Run("returns empty slice for table with no columns", func(t *testing.T) {
-		rows := mock.NewRows([]string{"column_name", "data_type", "is_nullable", "column_default", "is_generated"})
+		rows := mock.NewRows([]string{"column_name", "data_type", "is_nullable", "column_default", "is_generated", "identity_generation"})
 		mock.ExpectQuery(query).WithArgs(schema, table).WillReturnRows(rows)
 		columns, err := p.GetTableColumns(schema, table)
 

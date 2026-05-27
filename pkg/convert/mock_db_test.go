@@ -191,6 +191,18 @@ func (m *mockConvertDBClient) ReassignSequences(schema, oldTable, newTable strin
 	return nil
 }
 
+func (m *mockConvertDBClient) GetIdentityColumns(schema, table string) ([]postgresql.IdentityColumnInfo, error) {
+	return nil, nil
+}
+
+func (m *mockConvertDBClient) RestoreIdentityGeneration(schema, table, column string) error {
+	return nil
+}
+
+func (m *mockConvertDBClient) RestoreIdentityGenerationWithStrategy(schema, table, column, strategy string) error {
+	return nil
+}
+
 func (m *mockConvertDBClient) BeginTx(ctx context.Context) (postgresql.Tx, error) {
 	return nil, nil
 }

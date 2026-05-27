@@ -51,7 +51,7 @@ func TestIntegration_IdentityGenerationAlwaysPreservedAfterCutover(t *testing.T)
 			'2024-01-01'::timestamptz + (i * interval '1 hour'),
 			'event_' || i,
 			i
-		FROM generate_series(1, 100) AS i`)
+		FROM generate_series(1, 20) AS i`)
 	require.NoError(t, err, "failed to insert test data")
 
 	// Verify source table has identity_generation = 'ALWAYS' before cutover
@@ -187,7 +187,7 @@ func TestIntegration_MultipleIdentityColumnsPreservedAfterCutover(t *testing.T) 
 			'2024-01-01'::timestamptz + (i * interval '1 hour'),
 			'event_' || i,
 			i
-		FROM generate_series(1, 100) AS i`)
+		FROM generate_series(1, 20) AS i`)
 	require.NoError(t, err, "failed to insert test data")
 
 	// Verify source table identity_generation values before cutover
