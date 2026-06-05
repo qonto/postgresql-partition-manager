@@ -282,7 +282,7 @@ psql
 
 ## Documentation
 
-The documentation site is built with [MkDocs](https://www.mkdocs.org/) and the [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/) theme.
+The documentation site is built with [MkDocs](https://www.mkdocs.org/), the [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/) theme, and [mike](https://github.com/jimporter/mike) for multi-version support.
 
 ### Install dependencies
 
@@ -306,7 +306,7 @@ make docs-generate
 make docs-serve
 ```
 
-This starts a local server at [http://127.0.0.1:8000](http://127.0.0.1:8000) with live reload.
+This starts a local server at [http://127.0.0.1:8000](http://127.0.0.1:8000) with the versioned documentation.
 
 ### Build and validate
 
@@ -318,7 +318,7 @@ This runs `mkdocs build --strict`, which treats warnings (broken links, missing 
 
 ### Publishing
 
-Documentation is automatically published to GitHub Pages when a new release tag (`v*`) is pushed. On pull requests that touch documentation files, the site is built and validated but not deployed. No manual deployment is needed.
+Documentation is automatically published to GitHub Pages when a new release tag (`v*`) is pushed. Each release creates a new versioned documentation (e.g., `/v1.2.0/`) and updates the `latest` alias. On pull requests that touch documentation files, the site is built and validated but not deployed. No manual deployment is needed.
 
 ### Rules
 

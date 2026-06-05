@@ -40,13 +40,17 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: echo "PPM_VERSION=${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"
 
-      - name: Inject version into site name
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: sed -i "s/^site_name:.*/site_name: PostgreSQL Partition Manager ($PPM_VERSION)/" mkdocs.yml
-
       - name: Build documentation
         run: mkdocs build --strict
 
-      - name: Deploy to GitHub Pages
+      - name: Configure git for mike
         if: startsWith(github.ref, 'refs/tags/v')
-        run: mkdocs gh-deploy --force
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy versioned docs
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mike deploy --push --update-aliases $PPM_VERSION latest
+          mike set-default --push latest

@@ -2,7 +2,7 @@
 
 An opinionated tool to streamline PostgreSQL partition management. Handles provisioning, cleanup, and configuration checks for declarative partitions — no extensions required.
 
-**[Documentation](https://qonto.github.io/postgresql-partition-manager)** | **[Getting Started](https://qonto.github.io/postgresql-partition-manager/getting-started/)**
+**[Documentation](https://qonto.github.io/postgresql-partition-manager/latest/)** | **[Getting Started](https://qonto.github.io/postgresql-partition-manager/latest/getting-started/)**
 
 ## Quick Start
 
@@ -44,7 +44,7 @@ postgresql-partition-manager run all
 go install github.com/qonto/postgresql-partition-manager@latest
 ```
 
-See [Installation](https://qonto.github.io/postgresql-partition-manager/installation/) for other methods (Docker, Helm, Debian package).
+See [Installation](https://qonto.github.io/postgresql-partition-manager/latest/installation/) for other methods (Docker, Helm, Debian package).
 
 ## Usage
 
@@ -56,7 +56,7 @@ postgresql-partition-manager run cleanup                 # Remove outdated parti
 postgresql-partition-manager run all                     # Run provisioning + cleanup + check
 ```
 
-See the [documentation](https://qonto.github.io/postgresql-partition-manager/usage/) for the complete reference and configuration options.
+See the [documentation](https://qonto.github.io/postgresql-partition-manager/latest/usage/) for the complete reference and configuration options.
 
 ## Contributing
 

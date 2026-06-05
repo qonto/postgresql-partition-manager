@@ -97,7 +97,9 @@ docs-generate:
 
 .PHONY: docs-serve
 docs-serve: docs-generate
-	mkdocs serve
+	mike deploy dev
+	mike set-default dev
+	mike serve
 
 .PHONY: docs-build
 docs-build: docs-generate
