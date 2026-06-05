@@ -90,3 +90,15 @@ lint:
 
 .PHONY: all-tests
 all-tests: test helm-test kubeconform-test goreleaser-check
+
+.PHONY: docs-generate
+docs-generate:
+	go run ./cmd/docgen/
+
+.PHONY: docs-serve
+docs-serve: docs-generate
+	mkdocs serve
+
+.PHONY: docs-build
+docs-build: docs-generate
+	mkdocs build --strict
