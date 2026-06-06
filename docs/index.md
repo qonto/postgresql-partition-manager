@@ -14,10 +14,6 @@ The key objective of PPM is to simplify the use of PostgreSQL partitions for dev
 - **Multiple partition intervals** — Support for daily, weekly, monthly, quarterly, and yearly partitioning
 - **Flexible partition keys** — Support for `date`, `timestamp`, `timestamptz`, and `uuid` column types
 
-## How It Works
-
-PPM processes all referenced partitions and exits with a non-zero code if it detects an anomaly in at least one partition. This process should be closely monitored to trigger manual intervention, if necessary, to avoid system downtime.
-
 ## Getting Started
 
 Head over to the [Getting Started](getting-started.md) guide to set up PPM in minutes, or explore the [Installation](installation.md) page for all available installation methods.
