@@ -61,7 +61,7 @@ postgresql-partition-manager validate
 
 ### 5. Run Partition Management
 
-Execute all partition operations (provisioning, cleanup, and check):
+Execute all operations in once (partition provisioning, partition cleanup (detach or drop), and check):
 
 ```bash
 postgresql-partition-manager run all
