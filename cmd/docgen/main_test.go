@@ -42,7 +42,12 @@ func generateCLIReference(t *testing.T, rootCmd *cobra.Command) string {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	defer tmpFile.Close()
+
+	defer func() {
+		if cerr := tmpFile.Close(); cerr != nil {
+			t.Logf("warning: failed to close temp file: %v", cerr)
+		}
+	}()
 
 	generateCommandDoc(tmpFile, rootCmd, 2)
 
@@ -57,10 +62,12 @@ func generateCLIReference(t *testing.T, rootCmd *cobra.Command) string {
 // collectCommands recursively collects all commands in the Cobra tree.
 func collectCommands(command *cobra.Command) []*cobra.Command {
 	commands := []*cobra.Command{command}
+
 	for _, sub := range command.Commands() {
 		if sub.IsAdditionalHelpTopicCommand() {
 			continue
 		}
+
 		commands = append(commands, collectCommands(sub)...)
 	}
 
@@ -91,6 +98,7 @@ func TestPropertyCLIReferenceCompleteness(t *testing.T) {
 		if description == "" {
 			description = command.Short
 		}
+
 		if description != "" && !strings.Contains(output, description) {
 			t.Fatalf("description %q for command %q not found in CLI reference output", description, commandPath)
 		}
@@ -100,6 +108,7 @@ func TestPropertyCLIReferenceCompleteness(t *testing.T) {
 			if flag.Hidden {
 				return
 			}
+
 			if !strings.Contains(output, flag.Name) {
 				t.Fatalf("flag name %q for command %q not found in CLI reference output", flag.Name, commandPath)
 			}
@@ -108,6 +117,7 @@ func TestPropertyCLIReferenceCompleteness(t *testing.T) {
 			if defValue == "" {
 				defValue = `""`
 			}
+
 			if !strings.Contains(output, defValue) {
 				t.Fatalf("flag default value %q for flag %q of command %q not found in CLI reference output", defValue, flag.Name, commandPath)
 			}
@@ -122,6 +132,7 @@ func TestPropertyCLIReferenceCompleteness(t *testing.T) {
 			if flag.Hidden {
 				return
 			}
+
 			if !strings.Contains(output, flag.Name) {
 				t.Fatalf("inherited flag name %q for command %q not found in CLI reference output", flag.Name, commandPath)
 			}
@@ -130,6 +141,7 @@ func TestPropertyCLIReferenceCompleteness(t *testing.T) {
 			if defValue == "" {
 				defValue = `""`
 			}
+
 			if !strings.Contains(output, defValue) {
 				t.Fatalf("inherited flag default value %q for flag %q of command %q not found in CLI reference output", defValue, flag.Name, commandPath)
 			}
@@ -165,6 +177,7 @@ func extractNavPages(nav []map[string]interface{}) []string {
 						subNav = append(subNav, m)
 					}
 				}
+
 				pages = append(pages, extractNavPages(subNav)...)
 			}
 		}
@@ -192,6 +205,7 @@ func findProjectRoot(t *testing.T) string {
 		if parent == dir {
 			t.Fatal("could not find project root (no mkdocs.yml found)")
 		}
+
 		dir = parent
 	}
 }
@@ -200,7 +214,7 @@ func findProjectRoot(t *testing.T) string {
 func loadNavPages(t *testing.T, projectRoot string) []string {
 	t.Helper()
 
-	data, err := os.ReadFile(filepath.Join(projectRoot, "mkdocs.yml"))
+	data, err := os.ReadFile(filepath.Join(projectRoot, "mkdocs.yml")) //nolint:gosec // path is constructed from known project root
 	if err != nil {
 		t.Fatalf("failed to read mkdocs.yml: %v", err)
 	}
@@ -234,7 +248,7 @@ func TestPropertyDocumentationPageStructure(t *testing.T) {
 		fullPath := filepath.Join(projectRoot, "docs", page)
 
 		// Property: the file must exist
-		content, err := os.ReadFile(fullPath)
+		content, err := os.ReadFile(fullPath) //nolint:gosec // path is constructed from known project root and nav entries
 		if err != nil {
 			t.Fatalf("page %q listed in nav does not exist at %q: %v", page, fullPath, err)
 		}
@@ -261,6 +275,7 @@ func TestPropertyDocumentationPageStructure(t *testing.T) {
 		// Property: after the heading, there must be at least one non-empty paragraph
 		// of introductory text (skip blank lines between heading and paragraph)
 		foundParagraph := false
+
 		for i := 1; i < len(lines); i++ {
 			line := strings.TrimSpace(lines[i])
 
