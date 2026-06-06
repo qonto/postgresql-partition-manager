@@ -16,7 +16,11 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const outputFile = "docs/cli-reference.md"
+const (
+	outputFile          = "docs/cli-reference.md"
+	initialHeadingLevel = 2
+	dirPermissions      = 0o750
+)
 
 func main() {
 	rootCmd, err := cmd.NewRootCommand()
@@ -30,7 +34,7 @@ func main() {
 	rootCmd.DisableAutoGenTag = true
 
 	dir := filepath.Dir(outputFile)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, dirPermissions); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating directory %s: %v\n", dir, err)
 		os.Exit(1)
 	}
@@ -40,31 +44,36 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error creating file %s: %v\n", outputFile, err)
 		os.Exit(1)
 	}
-	defer f.Close()
 
-	fmt.Fprintln(f, "# CLI Reference")
-	fmt.Fprintln(f)
-	fmt.Fprintln(f, "<!-- This file is auto-generated from the Cobra command tree. Do not edit manually. -->")
-	fmt.Fprintln(f)
+	defer func() {
+		if cerr := f.Close(); cerr != nil {
+			fmt.Fprintf(os.Stderr, "Error closing file %s: %v\n", outputFile, cerr)
+		}
+	}()
 
-	generateCommandDoc(f, rootCmd, 2)
+	_, _ = fmt.Fprintln(f, "# CLI Reference")
+	_, _ = fmt.Fprintln(f)
+	_, _ = fmt.Fprintln(f, "<!-- This file is auto-generated from the Cobra command tree. Do not edit manually. -->")
+	_, _ = fmt.Fprintln(f)
+
+	generateCommandDoc(f, rootCmd, initialHeadingLevel)
 
 	fmt.Printf("CLI reference generated at %s\n", outputFile)
 }
 
 func generateCommandDoc(f *os.File, command *cobra.Command, headingLevel int) {
 	heading := strings.Repeat("#", headingLevel)
-	fmt.Fprintf(f, "%s %s\n\n", heading, command.CommandPath())
+	_, _ = fmt.Fprintf(f, "%s %s\n\n", heading, command.CommandPath())
 
 	if command.Long != "" {
-		fmt.Fprintf(f, "%s\n\n", command.Long)
+		_, _ = fmt.Fprintf(f, "%s\n\n", command.Long)
 	} else if command.Short != "" {
-		fmt.Fprintf(f, "%s\n\n", command.Short)
+		_, _ = fmt.Fprintf(f, "%s\n\n", command.Short)
 	}
 
 	if command.UseLine() != "" {
-		fmt.Fprintf(f, "**Usage:**\n\n")
-		fmt.Fprintf(f, "```\n%s\n```\n\n", command.UseLine())
+		_, _ = fmt.Fprintf(f, "**Usage:**\n\n")
+		_, _ = fmt.Fprintf(f, "```\n%s\n```\n\n", command.UseLine())
 	}
 
 	writeFlags(f, "Flags", command.NonInheritedFlags())
@@ -74,6 +83,7 @@ func generateCommandDoc(f *os.File, command *cobra.Command, headingLevel int) {
 		if sub.IsAdditionalHelpTopicCommand() {
 			continue
 		}
+
 		generateCommandDoc(f, sub, headingLevel+1)
 	}
 }
@@ -84,6 +94,7 @@ func writeFlags(f *os.File, title string, flags *pflag.FlagSet) {
 	}
 
 	hasVisible := false
+
 	flags.VisitAll(func(flag *pflag.Flag) {
 		if !flag.Hidden {
 			hasVisible = true
@@ -94,9 +105,9 @@ func writeFlags(f *os.File, title string, flags *pflag.FlagSet) {
 		return
 	}
 
-	fmt.Fprintf(f, "**%s:**\n\n", title)
-	fmt.Fprintln(f, "| Flag | Shorthand | Default | Description |")
-	fmt.Fprintln(f, "|------|-----------|---------|-------------|")
+	_, _ = fmt.Fprintf(f, "**%s:**\n\n", title)
+	_, _ = fmt.Fprintln(f, "| Flag | Shorthand | Default | Description |")
+	_, _ = fmt.Fprintln(f, "|------|-----------|---------|-------------|")
 
 	flags.VisitAll(func(flag *pflag.Flag) {
 		if flag.Hidden {
@@ -113,9 +124,9 @@ func writeFlags(f *os.File, title string, flags *pflag.FlagSet) {
 			defValue = `""`
 		}
 
-		fmt.Fprintf(f, "| --%s | %s | %s | %s |\n",
+		_, _ = fmt.Fprintf(f, "| --%s | %s | %s | %s |\n",
 			flag.Name, shorthand, defValue, flag.Usage)
 	})
 
-	fmt.Fprintln(f)
+	_, _ = fmt.Fprintln(f)
 }
