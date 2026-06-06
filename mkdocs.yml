@@ -1,0 +1,44 @@
+site_name: PostgreSQL Partition Manager
+site_url: https://qonto.github.io/postgresql-partition-manager
+site_description: Opinionated PostgreSQL partition management tool
+repo_url: https://github.com/qonto/postgresql-partition-manager
+repo_name: qonto/postgresql-partition-manager
+
+extra:
+  version:
+    provider: mike
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - tables
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+
+use_directory_urls: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Installation: installation.md
+  - Usage: usage.md
+  - Configuration: configuration.md
+  - CLI Reference: cli-reference.md
+  - Examples: examples.md
+  - Troubleshooting: troubleshooting.md

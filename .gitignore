@@ -7,3 +7,9 @@
 /postgresql-partition-manager
 /postgresql-partition-manager.yaml
 scripts/localdev/.data
+
+# MkDocs build output
+site/
+
+# Auto-generated CLI reference (produced by cmd/docgen)
+docs/cli-reference.md

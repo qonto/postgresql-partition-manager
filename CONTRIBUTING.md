@@ -280,6 +280,52 @@ psql
     make bats-test
     ```
 
+## Documentation
+
+The documentation site is built with [MkDocs](https://www.mkdocs.org/), the [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/) theme, and [mike](https://github.com/jimporter/mike) for multi-version support.
+
+### Install dependencies
+
+```bash
+pip install -r requirements-docs.txt
+```
+
+### Generate CLI reference
+
+The CLI reference page (`docs/cli-reference.md`) is auto-generated from the Cobra command tree. **Never edit it manually.**
+
+Regenerate it after any change to commands or flags in `cmd/`:
+
+```bash
+make docs-generate
+```
+
+### Preview locally
+
+```bash
+make docs-serve
+```
+
+This starts a local server at [http://127.0.0.1:8000](http://127.0.0.1:8000) with the versioned documentation.
+
+### Build and validate
+
+```bash
+make docs-build
+```
+
+This runs `mkdocs build --strict`, which treats warnings (broken links, missing pages) as errors.
+
+### Publishing
+
+Documentation is automatically published to GitHub Pages when a new release tag (`v*`) is pushed. Each release creates a new versioned documentation (e.g., `/v1.2.0/`) and updates the `latest` alias. On pull requests that touch documentation files, the site is built and validated but not deployed. No manual deployment is needed.
+
+### Rules
+
+* Always run `make docs-generate` after modifying CLI commands or flags
+* Include the regenerated `docs/cli-reference.md` in the same commit as the CLI change
+* Documentation must build without warnings before merging
+
 ## Dependency management
 
 Project uses [Go modules](https://golang.org/cmd/go/#hdr-Modules__module_versions__and_more) to manage dependencies on external packages.
