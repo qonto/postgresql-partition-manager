@@ -4,88 +4,197 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/qonto/postgresql-partition-manager/internal/infra/hook"
 	partition_pkg "github.com/qonto/postgresql-partition-manager/internal/infra/partition"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/retry"
 )
 
 var ErrPartitionCleanupFailed = errors.New("at least one partition could not be cleaned")
 
+// cleanupState accumulates failure signals across the whole cleanup run to compute the exit code.
+type cleanupState struct {
+	hookFailure    bool
+	partitionError bool
+}
+
 func (p PPM) CleanupPartitions() error {
-	partitionContainAnError := false
+	metrics := hook.NewMetricsCollector(p.logger)
+	state := &cleanupState{}
+
+	if p.dryRun {
+		p.logger.Info("[DRY-RUN] Starting dry-run cleanup - no partitions will be modified, no hooks will be executed")
+	}
 
 	for name, config := range p.partitions {
-		p.logger.Info("Cleaning partition", "partition", name)
-
-		// Existing
-		foundPartitions, err := p.ListPartitions(config.Schema, config.Table)
+		aborted, err := p.cleanupPartitionSet(name, config, metrics, state)
 		if err != nil {
-			return fmt.Errorf("could not list partitions: %w", err)
+			return err
 		}
 
-		currentRange, err := p.getGlobalRange(foundPartitions)
-		if err != nil {
-			return fmt.Errorf("could not evaluate existing ranges: %w", err)
-		}
+		if aborted {
+			metrics.LogSummary()
 
-		p.logger.Info("Current ", "c_range", currentRange.String())
-
-		// Expected
-		expectedPartitions, err := getExpectedPartitions(config, p.workDate)
-		if err != nil {
-			return fmt.Errorf("could not generate expected partitions: %w", err)
-		}
-
-		expectedRange, err := p.getGlobalRange(expectedPartitions)
-		if err != nil {
-			return fmt.Errorf("could not evaluate ranges to create: %w", err)
-		}
-
-		p.logger.Info("Expected", "e_range", expectedRange)
-
-		if expectedRange.IsEqual(currentRange) {
-			continue // nothing to do on this partition set
-		}
-
-		// Each partition whose bounds are entirely outside of expectedRange can be removed
-
-		for _, part := range foundPartitions {
-			if !part.UpperBound.After(expectedRange.LowerBound) || !part.LowerBound.Before(expectedRange.UpperBound) {
-				p.logger.Info("No intersection", "remove-range", partition_pkg.Bounds(part.LowerBound, part.UpperBound))
-
-				err := p.DetachPartition(part)
-				if err != nil {
-					partitionContainAnError = true
-
-					p.logger.Error("Failed to detach partition", "schema", part.Schema, "table", part.Name, "error", err)
-
-					continue
-				}
-
-				p.logger.Info("Partition detached", "schema", part.Schema, "table", part.Name, "parent_table", part.ParentTable)
-
-				if config.CleanupPolicy == partition_pkg.Drop {
-					err := p.DeletePartition(part)
-					if err != nil {
-						partitionContainAnError = true
-
-						p.logger.Error("Failed to delete partition", "schema", part.Schema, "table", part.Name, "error", err)
-
-						continue
-					}
-
-					p.logger.Info("Partition deleted", "schema", part.Schema, "table", part.Name, "parent_table", part.ParentTable)
-				}
-			}
+			return fmt.Errorf("%w: %w", ErrPartitionCleanupFailed, hook.ErrAbort)
 		}
 	}
 
-	if partitionContainAnError {
+	// Log execution summary at end of cleanup
+	if metrics.Summary().TotalExecuted > 0 {
+		metrics.LogSummary()
+	}
+
+	// Return error if any hook or operation failed during the run (for non-zero exit code).
+	// In dry-run mode, only template/configuration errors set hookFailure (Requirement 17.6).
+	if state.hookFailure || state.partitionError {
 		return ErrPartitionCleanupFailed
 	}
 
-	p.logger.Info("All partitions are cleaned")
+	if p.dryRun {
+		p.logger.Info("[DRY-RUN] Dry-run cleanup complete - no changes were made")
+	} else {
+		p.logger.Info("All partitions are cleaned")
+	}
 
 	return nil
+}
+
+// cleanupPartitionSet processes one partition configuration: it computes which existing
+// partitions fall outside the expected retention range and removes each of them.
+// It returns true if a hook requested an abort of the entire cleanup process.
+func (p PPM) cleanupPartitionSet(name string, config partition_pkg.Configuration, metrics *hook.MetricsCollector, state *cleanupState) (abort bool, err error) {
+	p.logger.Info("Cleaning partition", "partition", name)
+
+	foundPartitions, err := p.ListPartitions(config.Schema, config.Table)
+	if err != nil {
+		return false, fmt.Errorf("could not list partitions: %w", err)
+	}
+
+	currentRange, err := p.getGlobalRange(foundPartitions)
+	if err != nil {
+		return false, fmt.Errorf("could not evaluate existing ranges: %w", err)
+	}
+
+	p.logger.Info("Current ", "c_range", currentRange.String())
+
+	expectedPartitions, err := getExpectedPartitions(config, p.workDate)
+	if err != nil {
+		return false, fmt.Errorf("could not generate expected partitions: %w", err)
+	}
+
+	expectedRange, err := p.getGlobalRange(expectedPartitions)
+	if err != nil {
+		return false, fmt.Errorf("could not evaluate ranges to create: %w", err)
+	}
+
+	p.logger.Info("Expected", "e_range", expectedRange)
+
+	if expectedRange.IsEqual(currentRange) {
+		return false, nil // nothing to do on this partition set
+	}
+
+	orchestrator := p.newHookOrchestrator(name, config, metrics)
+
+	for _, part := range foundPartitions {
+		if !isOutsideExpectedRange(part, expectedRange) {
+			continue
+		}
+
+		p.logger.Info("No intersection", "remove-range", partition_pkg.Bounds(part.LowerBound, part.UpperBound))
+
+		if p.removePartition(name, config, part, orchestrator, state) == outcomeAbort {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// removePartition runs the full detach/drop lifecycle (with surrounding hooks) for a single
+// partition. Hooks run outside any PostgreSQL transaction.
+func (p PPM) removePartition(name string, config partition_pkg.Configuration, part partition_pkg.Partition, orchestrator *hook.Orchestrator, state *cleanupState) partitionOutcome {
+	partCtx := p.buildPartitionContext(name, config, part)
+
+	if o := p.runHook(func() error { return orchestrator.ExecuteBeforeDetach(p.ctx, partCtx) }, &state.hookFailure, part, "Before-detach hook failed, skipping detach"); o != outcomeCompleted {
+		return o
+	}
+
+	if !p.performDetach(part, state) {
+		return outcomeSkipped
+	}
+
+	if o := p.runHook(func() error { return orchestrator.ExecuteAfterDetach(p.ctx, partCtx) }, &state.hookFailure, part, "After-detach hook failed, skipping drop"); o != outcomeCompleted {
+		return o
+	}
+
+	// Drop-related operations only when cleanup policy is drop
+	if config.CleanupPolicy != partition_pkg.Drop {
+		return outcomeCompleted
+	}
+
+	if o := p.runHook(func() error { return orchestrator.ExecuteBeforeDrop(p.ctx, partCtx) }, &state.hookFailure, part, "Before-drop hook failed, skipping drop"); o != outcomeCompleted {
+		return o
+	}
+
+	if !p.performDrop(part, state) {
+		return outcomeSkipped
+	}
+
+	// After-drop failure: log warning, operation already done
+	if o := p.runHook(func() error { return orchestrator.ExecuteAfterDrop(p.ctx, partCtx) }, &state.hookFailure, part, "After-drop hook failed"); o == outcomeAbort {
+		return outcomeAbort
+	}
+
+	return outcomeCompleted
+}
+
+// performDetach detaches the partition, or logs the intended action in dry-run mode.
+// It returns false if the detach failed and the partition should be skipped.
+func (p PPM) performDetach(part partition_pkg.Partition, state *cleanupState) bool {
+	if p.dryRun {
+		p.logger.Info("[DRY-RUN] Would detach partition", "schema", part.Schema, "table", part.Name, "parent_table", part.ParentTable)
+
+		return true
+	}
+
+	if err := p.DetachPartition(part); err != nil {
+		state.partitionError = true
+
+		p.logger.Error("Failed to detach partition", "schema", part.Schema, "table", part.Name, "error", err)
+
+		return false
+	}
+
+	p.logger.Info("Partition detached", "schema", part.Schema, "table", part.Name, "parent_table", part.ParentTable)
+
+	return true
+}
+
+// performDrop drops the partition, or logs the intended action in dry-run mode.
+// It returns false if the drop failed and the partition should be skipped.
+func (p PPM) performDrop(part partition_pkg.Partition, state *cleanupState) bool {
+	if p.dryRun {
+		p.logger.Info("[DRY-RUN] Would drop partition", "schema", part.Schema, "table", part.Name, "parent_table", part.ParentTable)
+
+		return true
+	}
+
+	if err := p.DeletePartition(part); err != nil {
+		state.partitionError = true
+
+		p.logger.Error("Failed to delete partition", "schema", part.Schema, "table", part.Name, "error", err)
+
+		return false
+	}
+
+	p.logger.Info("Partition deleted", "schema", part.Schema, "table", part.Name, "parent_table", part.ParentTable)
+
+	return true
+}
+
+// isOutsideExpectedRange reports whether the partition's bounds fall entirely outside the
+// expected retention range, meaning the partition can be removed.
+func isOutsideExpectedRange(part partition_pkg.Partition, expectedRange partition_pkg.PartitionRange) bool {
+	return !part.UpperBound.After(expectedRange.LowerBound) || !part.LowerBound.Before(expectedRange.UpperBound)
 }
 
 func (p PPM) DetachPartition(partition partition_pkg.Partition) error {
