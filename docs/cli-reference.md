@@ -51,8 +51,14 @@ Perform partitions provisioning, cleanup, and check
 **Usage:**
 
 ```
-postgresql-partition-manager run all
+postgresql-partition-manager run all [flags]
 ```
+
+**Flags:**
+
+| Flag | Shorthand | Default | Description |
+|------|-----------|---------|-------------|
+| --dry-run |  | false | Preview which hooks would be executed without actually running them |
 
 **Inherited Flags:**
 
@@ -93,8 +99,14 @@ Remove outdated partitions
 **Usage:**
 
 ```
-postgresql-partition-manager run cleanup
+postgresql-partition-manager run cleanup [flags]
 ```
+
+**Flags:**
+
+| Flag | Shorthand | Default | Description |
+|------|-----------|---------|-------------|
+| --dry-run |  | false | Preview which hooks would be executed without actually running them |
 
 **Inherited Flags:**
 

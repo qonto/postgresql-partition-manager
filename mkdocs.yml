@@ -12,8 +12,6 @@ theme:
   name: material
   features:
     - content.code.copy
-    - navigation.sections
-    - navigation.expand
     - search.suggest
     - search.highlight
 
@@ -41,4 +39,11 @@ nav:
   - Configuration: configuration.md
   - CLI Reference: cli-reference.md
   - Examples: examples.md
+  - Hooks:
+    - Overview: hooks/index.md
+    - Shell: hooks/shell.md
+    - PostgreSQL: hooks/postgresql.md
+  - Development:
+    - Overview: development/index.md
+    - Developing a Hook Type: development/hook-types.md
   - Troubleshooting: troubleshooting.md

@@ -11,6 +11,7 @@ The key objective of PPM is to simplify the use of PostgreSQL partitions for dev
 - **Automatic provisioning** — Create upcoming partitions ahead of time
 - **Cleanup management** — Delete or detach outdated partitions
 - **Configuration checking** — Verify partitions match expected configuration
+- **Lifecycle hooks** — Execute custom actions (shell commands, SQL) before/after partition operations
 - **Multiple partition intervals** — Support for daily, weekly, monthly, quarterly, and yearly partitioning
 - **Flexible partition keys** — Support for `date`, `timestamp`, `timestamptz`, and `uuid` column types
 
