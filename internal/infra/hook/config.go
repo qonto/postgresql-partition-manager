@@ -88,6 +88,11 @@ type ShellConfig struct {
 	PropagateCredentials bool              `mapstructure:"propagate-credentials"`
 }
 
+// PostgreSQLConfig holds postgresql hook-specific configuration.
+type PostgreSQLConfig struct {
+	SQLQuery string `mapstructure:"sql_query"`
+}
+
 // HooksConfig groups hooks by lifecycle event.
 type HooksConfig struct {
 	BeforeDetach []HookEntry `mapstructure:"before-detach"`
