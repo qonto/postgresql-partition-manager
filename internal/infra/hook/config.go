@@ -80,6 +80,14 @@ type HookEntry struct {
 	Config    map[string]interface{} `mapstructure:"config"`
 }
 
+// ShellConfig holds shell hook-specific configuration.
+type ShellConfig struct {
+	Command              string            `mapstructure:"command"`
+	Args                 []string          `mapstructure:"args"`
+	Env                  map[string]string `mapstructure:"env"`
+	PropagateCredentials bool              `mapstructure:"propagate-credentials"`
+}
+
 // HooksConfig groups hooks by lifecycle event.
 type HooksConfig struct {
 	BeforeDetach []HookEntry `mapstructure:"before-detach"`
