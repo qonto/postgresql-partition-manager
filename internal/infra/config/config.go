@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/qonto/postgresql-partition-manager/internal/infra/hook"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
 )
 
@@ -15,6 +16,7 @@ type Config struct {
 	ConnectionURL    string                             `mapstructure:"connection-url"`
 	StatementTimeout int                                `mapstructure:"statement-timeout" validate:"required"`
 	LockTimeout      int                                `mapstructure:"lock-timeout" validate:"required"`
+	Hooks            *hook.HooksConfig                  `mapstructure:"hooks"`
 	Partitions       map[string]partition.Configuration `mapstructure:"partitions" validate:"required,dive,keys,endkeys,required"`
 }
 
@@ -26,6 +28,22 @@ func (c *Config) Check() error {
 		formatConfigurationError(err)
 
 		return fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	// Validate global hooks if present
+	if c.Hooks != nil {
+		if err := c.Hooks.Validate(); err != nil {
+			return fmt.Errorf("global hooks validation failed: %w", err)
+		}
+	}
+
+	// Validate partition-level hooks if present
+	for name, p := range c.Partitions {
+		if p.Hooks != nil {
+			if err := p.Hooks.Validate(); err != nil {
+				return fmt.Errorf("partition '%s' hooks validation failed: %w", name, err)
+			}
+		}
 	}
 
 	return nil
