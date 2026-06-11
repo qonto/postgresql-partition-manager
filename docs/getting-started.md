@@ -7,6 +7,7 @@ This guide walks you through installing and running PPM for the first time. By t
 - PostgreSQL 14 or higher
 - A table using [declarative RANGE partitioning](https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-DECLARATIVE)
 - A partition key column of type `date`, `timestamp`, `timestamptz`, or `uuid`
+- **No** default partition set.
 
 ## Quick Start
 
@@ -32,6 +33,8 @@ CREATE TABLE public.logs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 ) PARTITION BY RANGE (created_at);
 ```
+
+> Default partitions are not supported by PPM, that's why we did not initialize one.
 
 ### 3. Create a Configuration File
 
