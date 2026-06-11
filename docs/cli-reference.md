@@ -9,7 +9,7 @@ Simplified PostgreSQL partitioning management
 **Usage:**
 
 ```
-postgresql-partition-manager 
+postgresql-partition-manager
 ```
 
 **Flags:**
@@ -25,7 +25,7 @@ postgresql-partition-manager
 
 ### postgresql-partition-manager run
 
-Perform partition operations
+Perform partition operations. Default partitions are not supported.
 
 **Usage:**
 
@@ -46,7 +46,7 @@ postgresql-partition-manager run
 
 #### postgresql-partition-manager run all
 
-Perform partitions provisioning, cleanup, and check
+Perform partitions provisioning, cleanup, and check. Default partitions are not supported.
 
 **Usage:**
 
@@ -67,7 +67,7 @@ postgresql-partition-manager run all
 
 #### postgresql-partition-manager run check
 
-Check existing partitions
+Check existing partitions. Default partitions are not supported and may break checks.
 
 **Usage:**
 
@@ -109,7 +109,7 @@ postgresql-partition-manager run cleanup
 
 #### postgresql-partition-manager run provisioning
 
-Create and attach new partitions
+Create and attach new partitions. Default partitions are not supported.
 
 **Usage:**
 
@@ -148,4 +148,3 @@ postgresql-partition-manager validate
 | --lock-timeout |  | 100 | Set lock_timeout (ms) |
 | --log-format | -l | json | Log format (text or json) |
 | --statement-timeout |  | 3000 | Set statement_timeout (ms) |
-

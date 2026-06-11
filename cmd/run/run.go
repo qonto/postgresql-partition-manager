@@ -32,7 +32,7 @@ func RunCmd() *cobra.Command {
 	runCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Perform partition operations",
-		Long:  "Perform partition operations",
+		Long:  "Perform partition operations. Default partitions are not supported.",
 		Run: func(cmd *cobra.Command, args []string) {
 			_ = cmd.Help()
 		},
@@ -49,7 +49,7 @@ func RunCmd() *cobra.Command {
 var AllCmd = &cobra.Command{
 	Use:   "all",
 	Short: "Perform partitions provisioning, cleanup, and check",
-	Long:  "Perform partitions provisioning, cleanup, and check",
+	Long:  "Perform partitions provisioning, cleanup, and check. Default partitions are not supported.",
 	Run: func(cmd *cobra.Command, args []string) {
 		client := initCmd()
 
@@ -62,7 +62,7 @@ var AllCmd = &cobra.Command{
 var CheckCmd = &cobra.Command{
 	Use:   "check",
 	Short: "Check existing partitions",
-	Long:  "Check existing partitions",
+	Long:  "Check existing partitions. Default partitions are not supported and may break checks.",
 	Run: func(cmd *cobra.Command, args []string) {
 		client := initCmd()
 		checkCmd(client)
@@ -82,7 +82,7 @@ var CleanupCmd = &cobra.Command{
 var ProvisioningCmd = &cobra.Command{
 	Use:   "provisioning",
 	Short: "Create and attach new partitions",
-	Long:  "Create and attach new partitions",
+	Long:  "Create and attach new partitions. Default partitions are not supported.",
 	Run: func(cmd *cobra.Command, args []string) {
 		client := initCmd()
 		provisioningCmd(client)

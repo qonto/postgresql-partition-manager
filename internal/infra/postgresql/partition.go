@@ -122,7 +122,7 @@ func (p Postgres) ListPartitions(schema, table string) (partitions []PartitionRe
 
 	partitions, err = pgx.CollectRows(rows, pgx.RowToStructByName[PartitionResult])
 	if err != nil {
-		return nil, fmt.Errorf("failed to cast list: %w", err)
+		return nil, fmt.Errorf("failed to cast list: %w. This could mean that there is an existing default partition in the table. postgresql-partition-manager does not support default partitions", err)
 	}
 
 	return partitions, nil
