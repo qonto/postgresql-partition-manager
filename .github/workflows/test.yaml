@@ -1,6 +1,7 @@
 ---
 name: unittest
 on:  # yamllint disable-line rule:truthy
+  pull_request:
   push:
     branches:
       - "*"
