@@ -12,12 +12,13 @@ theme:
   name: material
   features:
     - content.code.copy
-    - navigation.sections
-    - navigation.expand
     - search.suggest
     - search.highlight
 
 plugins:
+  - awesome-pages
+  - macros:
+      module_name: mkdocs_macro
   - search
 
 markdown_extensions:
@@ -42,3 +43,6 @@ nav:
   - CLI Reference: cli-reference.md
   - Examples: examples.md
   - Troubleshooting: troubleshooting.md
+  - Architecture Decisions:
+      - adr/index.md
+      - adr/adr-001-default-partition.md
