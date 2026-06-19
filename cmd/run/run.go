@@ -26,7 +26,10 @@ const (
 	InvalidDateExitCode                  = 7
 )
 
-var ErrUnsupportedPostgreSQLVersion = errors.New("unsupported PostgreSQL version")
+var (
+	ErrUnsupportedPostgreSQLVersion = errors.New("unsupported PostgreSQL version")
+	dryRun                          bool
+)
 
 func RunCmd() *cobra.Command {
 	runCmd := &cobra.Command{
@@ -37,6 +40,9 @@ func RunCmd() *cobra.Command {
 			_ = cmd.Help()
 		},
 	}
+
+	AllCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview which hooks would be executed without actually running them")
+	CleanupCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview which hooks would be executed without actually running them")
 
 	runCmd.AddCommand(AllCmd)
 	runCmd.AddCommand(CheckCmd)
@@ -135,7 +141,7 @@ func initCmd() *ppm.PPM {
 
 	log.Info("Work date", "work-date", workDate)
 
-	client := ppm.New(context.TODO(), *log, db, config.Partitions, workDate)
+	client := ppm.New(context.TODO(), *log, db, config.Partitions, workDate, config.ConnectionURL, config.Hooks, dryRun)
 
 	if err = client.CheckServerRequirements(); err != nil {
 		log.Error("Server is incompatible", "error", err)
