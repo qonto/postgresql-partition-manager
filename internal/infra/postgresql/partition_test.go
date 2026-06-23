@@ -126,7 +126,7 @@ func TestListPartitions(t *testing.T) {
 	schema, table, parent := generateTable(t)
 
 	mock, p := setupMock(t, pgxmock.QueryMatcherRegexp)
-	query := `WITH parts as`
+	query := `^WITH parts as`
 
 	expectedPartitions := []postgresql.PartitionResult{
 		{
@@ -149,10 +149,12 @@ func TestListPartitions(t *testing.T) {
 	for _, p := range expectedPartitions {
 		rows.AddRow(p.Schema, p.Name, p.ParentTable, p.LowerBound, p.UpperBound)
 	}
+	mock.ExpectQuery("^SELECT 1").WithArgs(schema, parent).WillReturnRows(mock.NewRows([]string{}))
+
 	mock.ExpectQuery(query).WithArgs(schema, parent).WillReturnRows(rows)
 	result, err := p.ListPartitions(schema, parent)
 	assert.Nil(t, err, "ListPartitions should succeed")
-	assert.Equal(t, result, expectedPartitions, "Partitions should be match")
+	assert.Equal(t, result, expectedPartitions, "Partitions should match")
 
 	rows = mock.NewRows([]string{"invalidColumn"}).AddRow("invalidColumn")
 	mock.ExpectQuery(query).WithArgs(schema, parent).WillReturnRows(rows)
