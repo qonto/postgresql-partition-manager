@@ -11,19 +11,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func generateTable(t *testing.T) (schema, table, fullQualifiedTable, parent string) {
+func generateTable(t *testing.T) (schema, table, parent string) {
 	t.Helper()
 
 	schema = "public"
 	table = "my_table"
-	fullQualifiedTable = pgx.Identifier{schema, table}.Sanitize()
 	parent = "my_parent_table"
 
 	return
 }
 
 func TestIsPartitionAttached(t *testing.T) {
-	schema, table, _, _ := generateTable(t)
+	schema, table, _ := generateTable(t)
 
 	mock, p := setupMock(t, pgxmock.QueryMatcherRegexp)
 	query := "SELECT EXISTS"
@@ -44,7 +43,7 @@ func TestIsPartitionAttached(t *testing.T) {
 }
 
 func TestAttachPartition(t *testing.T) {
-	schema, table, _, parent := generateTable(t)
+	schema, table, parent := generateTable(t)
 	lowerBound := "2024-01-30"
 	upperBound := "2024-01-31"
 
@@ -64,7 +63,7 @@ func TestAttachPartition(t *testing.T) {
 }
 
 func TestDetachPartitionConcurrently(t *testing.T) {
-	schema, table, _, parent := generateTable(t)
+	schema, table, parent := generateTable(t)
 
 	mock, p := setupMock(t, pgxmock.QueryMatcherEqual)
 	query := fmt.Sprintf(`ALTER TABLE %s DETACH PARTITION %s CONCURRENTLY`,
@@ -81,7 +80,7 @@ func TestDetachPartitionConcurrently(t *testing.T) {
 }
 
 func TestFinalizePartitionDetach(t *testing.T) {
-	schema, table, _, parent := generateTable(t)
+	schema, table, parent := generateTable(t)
 
 	mock, p := setupMock(t, pgxmock.QueryMatcherEqual)
 
@@ -99,7 +98,7 @@ func TestFinalizePartitionDetach(t *testing.T) {
 }
 
 func TestGetPartitionSettings(t *testing.T) {
-	schema, table, _, _ := generateTable(t)
+	schema, table, _ := generateTable(t)
 	expectedStrategy := "RANGE"
 	expectedKey := "created_at"
 
@@ -124,7 +123,7 @@ func TestGetPartitionSettings(t *testing.T) {
 }
 
 func TestListPartitions(t *testing.T) {
-	schema, table, parent, _ := generateTable(t)
+	schema, table, parent := generateTable(t)
 
 	mock, p := setupMock(t, pgxmock.QueryMatcherRegexp)
 	query := `WITH parts as`
