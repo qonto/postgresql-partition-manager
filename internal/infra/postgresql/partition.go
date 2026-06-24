@@ -13,6 +13,9 @@ var (
 
 	// ErrTableIsNotPartitioned represents an error indicating the specified table don't have partitioning
 	ErrTableIsNotPartitioned = errors.New("table is not partitioned")
+
+	// Default partitions are not supported
+	ErrTableHasDefaultPartition = errors.New("table has a default partition")
 )
 
 type PartitionResult struct {
@@ -89,12 +92,35 @@ func (p Postgres) FinalizePartitionDetach(schema, table, parent string) error {
 }
 
 func (p Postgres) ListPartitions(schema, table string) (partitions []PartitionResult, err error) {
+	// First, check if there is a default partition and error out in that case
+	queryCheckDefaultPart := `
+		SELECT 1
+		 FROM
+		   pg_catalog.pg_class c JOIN pg_catalog.pg_inherits i ON (c.oid = i.inhrelid)
+		   JOIN pg_catalog.pg_namespace n ON (c.relnamespace = n.oid)
+		 WHERE i.inhparent = (SELECT c.oid
+                       FROM pg_catalog.pg_class c
+                       JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                       WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind='p'
+                   )
+		   AND c.relkind='r'
+		   AND pg_catalog.pg_get_expr(c.relpartbound, c.oid)='DEFAULT'`
+
+	rowDefault, err := p.conn.Query(p.ctx, queryCheckDefaultPart, schema, table)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check for a default partition: %w", err)
+	}
+
+	if rowDefault.Next() {
+		return nil, fmt.Errorf("%w. postgresql-partition-manager does not support default partitions", ErrTableHasDefaultPartition)
+	}
+
 	query := `
 	WITH parts as (
 		SELECT
 		   n.nspname as schema,
 		   c.relname AS part_name,
-		   regexp_match(pg_get_expr(c.relpartbound, c.oid),
+		   pg_catalog.regexp_match(pg_catalog.pg_get_expr(c.relpartbound, c.oid),
 					  'FOR VALUES FROM \(''(.*)''\) TO \(''(.*)''\)') AS bounds
 		 FROM
 		   pg_catalog.pg_class c JOIN pg_catalog.pg_inherits i ON (c.oid = i.inhrelid)
@@ -122,7 +148,7 @@ func (p Postgres) ListPartitions(schema, table string) (partitions []PartitionRe
 
 	partitions, err = pgx.CollectRows(rows, pgx.RowToStructByName[PartitionResult])
 	if err != nil {
-		return nil, fmt.Errorf("failed to cast list: %w. This could mean that there is an existing default partition in the table. postgresql-partition-manager does not support default partitions", err)
+		return nil, fmt.Errorf("failed to cast list: %w", err)
 	}
 
 	return partitions, nil
