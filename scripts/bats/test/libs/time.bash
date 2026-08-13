@@ -36,7 +36,7 @@ get_current_date_adjusted_by_month() {
     local delta=$1
 
     year=$(date +%Y)
-    month=$(date +%m)
+    month=$((10#$(date +%m)))
 
     # Calculate the new month and year
     local total_months=$(( year * 12 + month + delta - 1 ))
@@ -64,7 +64,7 @@ get_current_date_adjusted_by_quarter() {
     local delta=$1
 
     current_year=$(date +%Y)
-    current_month=$(date +%m)
+    current_month=$((10#$(date +%m)))
 
     # Determine the current quarter based on the month
     if (( current_month >= 1 && current_month <= 3 )); then
