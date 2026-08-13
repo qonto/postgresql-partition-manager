@@ -5,14 +5,19 @@ random_suffix() {
 }
 
 init_database() {
-  local dbname="ppm_test_"$(random_suffix)
+  local dbname="ppm_test_$(random_suffix)"
   QUERY="CREATE DATABASE \"$dbname\" ;"
   execute_sql "${QUERY}" postgres
-  export PPM_DATABASE="$dbname"
-  export PGDATABASE="$dbname"
+  export PPM_DATABASE="${dbname}"
+  export PGDATABASE="${dbname}"
 }
 
 drop_database() {
+  if [[ -z "${PPM_DATABASE:-}" ]]; then
+    echo "PPM_DATABASE is unset, cannot cleanup properly" >&2
+    return 1
+  fi
+
   QUERY="set lock_timeout to '5s'; DROP DATABASE IF EXISTS \"$PPM_DATABASE\" ;"
   execute_sql_commands "${QUERY}" postgres
   unset PPM_DATABASE

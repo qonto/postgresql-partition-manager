@@ -265,11 +265,14 @@ psql
 
 1. Start PostgreSQL
 
+    ```bash
+    docker-compose up -d
+    ```
+
 1. Export environment variables
 
     ```bash
     export PGHOST=localhost
-    export PGDATABASE=unittest
     export PGUSER=postgres
     export PGPASSWORD=hackme
     ```

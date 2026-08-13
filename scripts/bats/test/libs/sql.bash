@@ -20,20 +20,15 @@ execute_sql_file() {
   fi
 }
 
-# Execute multiple semicolon-separated commands
 execute_sql_commands() {
-  # $1: sql commands
-  # $2: dbname (if unset, psql defaults to $PGDATABASE and then $USER)
+  local SQL_COMMAND="$1"
+  local DATABASE="${2:-}"
 
-  local command="psql --tuples-only --no-align --quiet"
+  local psql_args=(--tuples-only --no-align --quiet)
 
-  if [ ! -z "$2" ]; then
-    command="$command --dbname=$2"
-  fi
+  [[ -n "$DATABASE" ]] && psql_args+=(--dbname="$DATABASE")
 
-  $command <<EOSQL
-$1
-EOSQL
+  psql "${psql_args[@]}" <<< "$SQL_COMMAND"
 }
 
 list_existing_partitions() {
