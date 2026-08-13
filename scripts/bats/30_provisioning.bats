@@ -29,7 +29,7 @@ setup() {
   # Create partitioned table
   create_partitioned_table ${TABLE}
 
-  local CONFIGURATION=$(cat << EOF
+  local CONFIGURATION=$(cat <<EOF
 partitions:
   unittest:
     schema: public
@@ -63,7 +63,7 @@ EOF
   # Create partitioned table
   create_partitioned_table ${TABLE}
 
-  local CONFIGURATION=$(cat << EOF
+  local CONFIGURATION=$(cat <<EOF
 partitions:
   unittest:
     schema: public
@@ -113,7 +113,7 @@ EOF
   # Create partitioned table
   create_partitioned_table ${TABLE}
 
-  local CONFIGURATION=$(cat << EOF
+  local CONFIGURATION=$(cat <<EOF
 partitions:
   unittest:
     schema: public
@@ -152,7 +152,7 @@ EOF
   # Create partitioned table
   create_partitioned_table ${TABLE}
 
-  local CONFIGURATION=$(cat << EOF
+  local CONFIGURATION=$(cat <<EOF
 partitions:
   unittest:
     schema: public
@@ -189,7 +189,7 @@ EOF
   # Create partitioned table
   create_partitioned_table ${TABLE}
 
-  local CONFIGURATION=$(cat << EOF
+  local CONFIGURATION=$(cat <<EOF
 partitions:
   unittest:
     schema: public
@@ -224,7 +224,7 @@ EOF
   # Create partitioned table
   create_partitioned_table ${TABLE}
 
-  local CONFIGURATION=$(cat << EOF
+  local CONFIGURATION=$(cat <<EOF
 partitions:
   unittest:
     schema: public
@@ -242,7 +242,7 @@ EOF
   assert_success
   assert_output --partial "All partitions are correctly provisioned"
 
-  run list_existing_partitions "public" ${TABLE}
+  run list_existing_partitions "public" "${TABLE}"
 
   local expected_monthly=$(cat <<EOF
 public|test_interv_2024_12|2024-12-01|2025-01-01
@@ -282,7 +282,7 @@ EOF
 }
 
 @test "Test provisioning with multiple partition sets in the configuration" {
-  local CONFIGURATION=$(cat << EOF
+  local CONFIGURATION=$(cat <<EOF
 partitions:
   unittest1:
     schema: public
@@ -310,7 +310,7 @@ EOF
   PPM_WORK_DATE="2025-02-01" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
   assert_success
 
-  local expected1=$(cat <<'EOF'
+  local expected1=$(cat <<EOF
 public|table_unittest1_2025_01_31|2025-01-31|2025-02-01
 public|table_unittest1_2025_02_01|2025-02-01|2025-02-02
 public|table_unittest1_2025_02_02|2025-02-02|2025-02-03
@@ -319,7 +319,7 @@ EOF
   run list_existing_partitions "public" "table_unittest1"
   assert_output "$expected1"
 
-  local expected2=$(cat <<'EOF'
+  local expected2=$(cat <<EOF
 public|table_unittest2_2025_01_30|2025-01-30|2025-01-31
 public|table_unittest2_2025_01_31|2025-01-31|2025-02-01
 public|table_unittest2_2025_02_01|2025-02-01|2025-02-02
@@ -339,7 +339,7 @@ EOF
 
 local TABLE=$(generate_table_name)
 
-local CONFIGURATION=$(cat << EOF
+local CONFIGURATION=$(cat <<EOF
 partitions:
   unittest1:
     schema: public
@@ -411,7 +411,7 @@ public|${TABLE}_2025_w12|2025-03-17 00:00:00+01|2025-03-24 00:00:00+01
 EOF
   )
 
-  run list_existing_partitions "public" ${TABLE}
+  run list_existing_partitions "public" "${TABLE}"
   assert_output "$expected_1"
 
   # Now advance one week up to the end of March 2025
@@ -431,7 +431,7 @@ public|${TABLE}_2025_w12|2025-03-17 00:00:00+01|2025-03-24 00:00:00+01
 public|${TABLE}_2025_w13|2025-03-24 00:00:00+01|2025-03-31 00:00:00+02
 EOF
 )
-  run list_existing_partitions "public" ${TABLE}
+  run list_existing_partitions "public" "${TABLE}"
   assert_output "$expected_2"
 
   rm "$CONFIGURATION_FILE"
@@ -478,11 +478,11 @@ EOF
 }
 
 @test "Test provisioning with special chars in the table name" {
-  local CONFIGURATION=$(cat << EOF
+  local CONFIGURATION=$(cat <<EOF
 partitions:
   unittest1:
     schema: public
-    table: table's name
+    table: table🌊s name
     interval: daily
     partitionKey: created_at
     cleanupPolicy: detach
@@ -492,18 +492,18 @@ EOF
 )
   local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
 
-  create_partitioned_table "\"table's name\""
+  create_partitioned_table "\"table🌊s name\""
 
   PPM_WORK_DATE="2025-02-01" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
   assert_success
 
-  local expected=$(cat <<'EOF'
-public|table's name_2025_01_31|2025-01-31|2025-02-01
-public|table's name_2025_02_01|2025-02-01|2025-02-02
-public|table's name_2025_02_02|2025-02-02|2025-02-03
+  local expected=$(cat <<EOF
+public|table🌊s name_2025_01_31|2025-01-31|2025-02-01
+public|table🌊s name_2025_02_01|2025-02-01|2025-02-02
+public|table🌊s name_2025_02_02|2025-02-02|2025-02-03
 EOF
   )
-  run list_existing_partitions "public" "table's name"
+  run list_existing_partitions "public" "table🌊s name"
   assert_output "$expected"
 
 

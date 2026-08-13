@@ -1,5 +1,6 @@
 .DS_Store
 /.vscode
+coverage-data/
 /cover.html
 /coverage.txt
 /coverage.xml
@@ -13,3 +14,7 @@ site/
 
 # Auto-generated CLI reference (produced by cmd/docgen)
 docs/cli-reference.md
+
+#local container data
+.data/
+test-postgresql-partition-manager
