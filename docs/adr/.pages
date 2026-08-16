@@ -1,0 +1,5 @@
+title: Architecture Decisions
+collapse: true
+arrange:
+  - index.md
+  - ...
