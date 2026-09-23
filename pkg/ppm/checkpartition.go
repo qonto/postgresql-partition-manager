@@ -155,15 +155,25 @@ func (p *PPM) comparePartitions(existingTables, expectedTables []partition.Parti
 }
 
 func (p *PPM) ListPartitions(schema, table string) (partitions []partition.Partition, err error) {
-	rawPartitions, err := p.db.ListPartitions(schema, table)
+	partitions, _, err = p.listPartitionsWithRawBounds(schema, table)
+
+	return partitions, err
+}
+
+// listPartitionsWithRawBounds returns the existing partitions along with their
+// bounds as returned by PostgreSQL, indexed by partition name.
+func (p *PPM) listPartitionsWithRawBounds(schema, table string) (partitions []partition.Partition, rawPartitions map[string]postgresql.PartitionResult, err error) {
+	results, err := p.db.ListPartitions(schema, table)
 	if err != nil {
-		return nil, fmt.Errorf("could not list partitions: %w", err)
+		return nil, nil, fmt.Errorf("could not list partitions: %w", err)
 	}
 
-	for _, p := range rawPartitions {
+	rawPartitions = make(map[string]postgresql.PartitionResult, len(results))
+
+	for _, p := range results {
 		lowerBound, upperBound, err := parseBounds(p)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse bounds: %w", err)
+			return nil, nil, fmt.Errorf("could not parse bounds: %w", err)
 		}
 
 		partitions = append(partitions, partition.Partition{
@@ -173,9 +183,10 @@ func (p *PPM) ListPartitions(schema, table string) (partitions []partition.Parti
 			LowerBound:  lowerBound,
 			UpperBound:  upperBound,
 		})
+		rawPartitions[p.Name] = p
 	}
 
-	return partitions, nil
+	return partitions, rawPartitions, nil
 }
 
 func (p *PPM) checkPartitionsConfiguration(config partition.Configuration) error {

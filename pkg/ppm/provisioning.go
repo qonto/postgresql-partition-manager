@@ -3,6 +3,7 @@ package ppm
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
@@ -36,7 +37,7 @@ func (p PPM) ProvisioningPartitions() error {
 }
 
 func (p PPM) provisionPartitionsFor(config partition.Configuration, at time.Time) error {
-	foundPartitions, err := p.ListPartitions(config.Schema, config.Table)
+	foundPartitions, rawPartitions, err := p.listPartitionsWithRawBounds(config.Schema, config.Table)
 	if err != nil {
 		return fmt.Errorf("could not list partitions: %w", err)
 	}
@@ -53,6 +54,8 @@ func (p PPM) provisionPartitionsFor(config partition.Configuration, at time.Time
 
 	p.logger.Info("Current ", "c_range", currentRange.String())
 
+	edges := getRangeEdges(foundPartitions, rawPartitions, currentRange)
+
 	expectedRange, err := p.getGlobalRange(partitions)
 	if err != nil {
 		return fmt.Errorf("could not evaluate ranges to create: %w", err)
@@ -65,14 +68,14 @@ func (p PPM) provisionPartitionsFor(config partition.Configuration, at time.Time
 		return nil
 	}
 
-	for _, candidate := range partitions {
+	for _, candidate := range provisioningOrder(partitions, currentRange) {
 		p.logger.Info("Candidate", "range", partition.Bounds(candidate.LowerBound, candidate.UpperBound))
 
 		if !candidate.UpperBound.After(currentRange.LowerBound) || !candidate.LowerBound.Before(currentRange.UpperBound) {
 			// no intersection between candidate and existing: create new partition
 			p.logger.Info("No intersection", "create-range", partition.Bounds(candidate.LowerBound, candidate.UpperBound))
 
-			err = p.CreatePartition(config, candidate)
+			err = p.createPartition(config, candidate, edges)
 		}
 
 		if err == nil && candidate.LowerBound.Before(currentRange.LowerBound) && candidate.UpperBound.After(currentRange.LowerBound) {
@@ -81,7 +84,7 @@ func (p PPM) provisionPartitionsFor(config partition.Configuration, at time.Time
 			segLeft.UpperBound = currentRange.LowerBound
 			segLeft.Name = fmt.Sprintf("%s_%s_%s", config.Table, segLeft.LowerBound.Format("20060102"), segLeft.UpperBound.Format("20060102"))
 			p.logger.Info("Left intersection", "create-range", partition.Bounds(segLeft.LowerBound, segLeft.UpperBound))
-			err = p.CreatePartition(config, segLeft)
+			err = p.createPartition(config, segLeft, edges)
 		}
 
 		if err == nil && candidate.UpperBound.After(currentRange.UpperBound) && candidate.LowerBound.Before(currentRange.UpperBound) {
@@ -90,7 +93,7 @@ func (p PPM) provisionPartitionsFor(config partition.Configuration, at time.Time
 			segRight.LowerBound = currentRange.UpperBound
 			segRight.Name = fmt.Sprintf("%s_%s_%s", config.Table, segRight.LowerBound.Format("20060102"), segRight.UpperBound.Format("20060102"))
 			p.logger.Info("Right intersection", "create-range", partition.Bounds(segRight.LowerBound, segRight.UpperBound))
-			err = p.CreatePartition(config, segRight)
+			err = p.createPartition(config, segRight, edges)
 		}
 
 		if err != nil {
@@ -103,7 +106,85 @@ func (p PPM) provisionPartitionsFor(config partition.Configuration, at time.Time
 	return nil
 }
 
+// provisioningOrder returns the candidates sorted so that each created partition
+// is adjacent to the existing set: candidates below the existing range from the
+// newest to the oldest, then the others from the oldest to the newest.
+// This way, a failure never leaves a gap between partitions, which would block
+// any further provisioning.
+func provisioningOrder(candidates []partition.Partition, currentRange partition.PartitionRange) []partition.Partition {
+	ordered := slices.Clone(candidates)
+
+	slices.SortFunc(ordered, func(a, b partition.Partition) int {
+		return a.LowerBound.Compare(b.LowerBound)
+	})
+
+	if currentRange.IsEmpty() {
+		return ordered
+	}
+
+	below := 0
+	for below < len(ordered) && ordered[below].LowerBound.Before(currentRange.LowerBound) {
+		below++
+	}
+
+	slices.Reverse(ordered[:below])
+
+	return ordered
+}
+
+// rangeEdges holds the bounds of the existing partition set as stored by PostgreSQL.
+//
+// A bound decoded from PostgreSQL only keeps its timestamp: a UUIDv7 bound created
+// by a previous PPM version (or by hand) may differ from the one PPM would generate
+// for the same timestamp (e.g. variant bits `...-7000-0000-...` vs `...-7000-8000-...`).
+// New partitions adjacent to the existing set must reuse the existing bound verbatim,
+// otherwise PostgreSQL detects an overlap (below the set) or leaves a gap (above it).
+type rangeEdges struct {
+	lowerBound    time.Time
+	rawLowerBound string
+	upperBound    time.Time
+	rawUpperBound string
+}
+
+func getRangeEdges(partitions []partition.Partition, rawPartitions map[string]postgresql.PartitionResult, currentRange partition.PartitionRange) (edges rangeEdges) {
+	if currentRange.IsEmpty() {
+		return edges
+	}
+
+	edges.lowerBound = currentRange.LowerBound
+	edges.upperBound = currentRange.UpperBound
+
+	for _, part := range partitions {
+		if part.LowerBound.Equal(currentRange.LowerBound) {
+			edges.rawLowerBound = rawPartitions[part.Name].LowerBound
+		}
+
+		if part.UpperBound.Equal(currentRange.UpperBound) {
+			edges.rawUpperBound = rawPartitions[part.Name].UpperBound
+		}
+	}
+
+	return edges
+}
+
+// adjust replaces the bounds of a new partition touching the existing set with the existing raw bounds
+func (e rangeEdges) adjust(part partition.Partition, lowerBound, upperBound string) (string, string) {
+	if e.rawLowerBound != "" && part.UpperBound.Equal(e.lowerBound) {
+		upperBound = e.rawLowerBound
+	}
+
+	if e.rawUpperBound != "" && part.LowerBound.Equal(e.upperBound) {
+		lowerBound = e.rawUpperBound
+	}
+
+	return lowerBound, upperBound
+}
+
 func (p PPM) CreatePartition(partitionConfiguration partition.Configuration, partition partition.Partition) error {
+	return p.createPartition(partitionConfiguration, partition, rangeEdges{})
+}
+
+func (p PPM) createPartition(_ partition.Configuration, partition partition.Partition, edges rangeEdges) error {
 	p.logger.Debug("Creating partition", "schema", partition.Schema, "table", partition.Name)
 
 	_, partitionKey, err := p.db.GetPartitionSettings(partition.Schema, partition.ParentTable)
@@ -153,8 +234,7 @@ func (p PPM) CreatePartition(partitionConfiguration partition.Configuration, par
 		lowerBound = partition.LowerBound.Format("2006-01-02 00:00:00")
 		upperBound = partition.UpperBound.Format("2006-01-02 00:00:00")
 	case postgresql.UUID:
-		lowerBound = uuid7.FromTime(partition.LowerBound)
-		upperBound = uuid7.FromTime(partition.UpperBound)
+		lowerBound, upperBound = edges.adjust(partition, uuid7.FromTime(partition.LowerBound), uuid7.FromTime(partition.UpperBound))
 	default:
 		return ErrUnsupportedPartitionStrategy
 	}
