@@ -32,6 +32,7 @@ postgresql-partition-manager run all
 
 - **Automatic provisioning** — create upcoming partitions ahead of time
 - **Cleanup management** — delete or detach outdated partitions with configurable retention
+- **Lifecycle hooks** — execute shell commands or SQL at each stage of partition cleanup
 - **Configuration checking** — verify partitions match expected configuration
 - **Multiple intervals** — daily, weekly, monthly, quarterly, and yearly partitioning
 - **Flexible partition keys** — `date`, `timestamp`, `timestamptz`, and `uuid` (UUIDv7) columns

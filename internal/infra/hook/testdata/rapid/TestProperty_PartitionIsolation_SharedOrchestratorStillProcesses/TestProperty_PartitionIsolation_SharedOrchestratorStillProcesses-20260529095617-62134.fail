@@ -1,0 +1,14 @@
+# 2026/05/29 09:56:17.551564 [TestProperty_PartitionIsolation_SharedOrchestratorStillProcesses] [rapid] draw event: "before-detach"
+# 2026/05/29 09:56:17.551570 [TestProperty_PartitionIsolation_SharedOrchestratorStillProcesses] [rapid] draw numPartitions: 3
+# 2026/05/29 09:56:17.551571 [TestProperty_PartitionIsolation_SharedOrchestratorStillProcesses] [rapid] draw failPartitionIdx: 0
+# 2026/05/29 09:56:17.551574 [TestProperty_PartitionIsolation_SharedOrchestratorStillProcesses] expected error for failing partition 0, got nil
+# 
+v0.4.8#4657605549209261549
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

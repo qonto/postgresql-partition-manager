@@ -3,6 +3,8 @@ package partition
 import (
 	"fmt"
 	"time"
+
+	"github.com/qonto/postgresql-partition-manager/internal/infra/hook"
 )
 
 type (
@@ -15,13 +17,14 @@ const (
 )
 
 type Configuration struct {
-	Schema         string        `mapstructure:"schema" validate:"required"`
-	Table          string        `mapstructure:"table" validate:"required"`
-	PartitionKey   string        `mapstructure:"partitionKey" validate:"required"`
-	Interval       Interval      `mapstructure:"interval" validate:"required,oneof=daily weekly monthly quarterly yearly"`
-	Retention      int           `mapstructure:"retention" validate:"required,gt=0"`
-	PreProvisioned int           `mapstructure:"preProvisioned" validate:"required,gt=0"`
-	CleanupPolicy  CleanupPolicy `mapstructure:"cleanupPolicy" validate:"required,oneof=drop detach"`
+	Schema         string            `mapstructure:"schema" validate:"required"`
+	Table          string            `mapstructure:"table" validate:"required"`
+	PartitionKey   string            `mapstructure:"partitionKey" validate:"required"`
+	Interval       Interval          `mapstructure:"interval" validate:"required,oneof=daily weekly monthly quarterly yearly"`
+	Retention      int               `mapstructure:"retention" validate:"required,gt=0"`
+	PreProvisioned int               `mapstructure:"preProvisioned" validate:"required,gt=0"`
+	CleanupPolicy  CleanupPolicy     `mapstructure:"cleanupPolicy" validate:"required,oneof=drop detach"`
+	Hooks          *hook.HooksConfig `mapstructure:"hooks"`
 }
 
 func (p Configuration) GeneratePartition(forDate time.Time) (Partition, error) {

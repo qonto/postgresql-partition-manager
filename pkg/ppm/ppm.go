@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/qonto/postgresql-partition-manager/internal/infra/hook"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/postgresql"
 )
@@ -28,20 +29,26 @@ type PostgreSQLClient interface {
 }
 
 type PPM struct {
-	ctx        context.Context
-	db         PostgreSQLClient
-	partitions map[string]partition.Configuration
-	logger     slog.Logger
-	workDate   time.Time
+	ctx           context.Context
+	db            PostgreSQLClient
+	partitions    map[string]partition.Configuration
+	logger        slog.Logger
+	workDate      time.Time
+	connectionURL string
+	globalHooks   *hook.HooksConfig
+	dryRun        bool
 }
 
-func New(context context.Context, logger slog.Logger, db PostgreSQLClient, partitions map[string]partition.Configuration, workDate time.Time) *PPM {
+func New(context context.Context, logger slog.Logger, db PostgreSQLClient, partitions map[string]partition.Configuration, workDate time.Time, connectionURL string, globalHooks *hook.HooksConfig, dryRun bool) *PPM {
 	return &PPM{
-		partitions: partitions,
-		ctx:        context,
-		db:         db,
-		logger:     logger,
-		workDate:   workDate,
+		partitions:    partitions,
+		ctx:           context,
+		db:            db,
+		logger:        logger,
+		workDate:      workDate,
+		connectionURL: connectionURL,
+		globalHooks:   globalHooks,
+		dryRun:        dryRun,
 	}
 }
 
