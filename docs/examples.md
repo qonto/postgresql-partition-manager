@@ -15,6 +15,7 @@ partitions:
     table: logs
     partitionKey: created_at
     interval: daily
+    initialRetention: 1
     retention: 30
     preProvisioned: 7
     cleanupPolicy: drop
@@ -37,6 +38,7 @@ partitions:
     table: events
     partitionKey: event_date
     interval: monthly
+    initialRetention: 1
     retention: 12
     preProvisioned: 3
     cleanupPolicy: detach
@@ -55,6 +57,7 @@ partitions:
     table: orders
     partitionKey: id
     interval: monthly
+    initialRetention: 1
     retention: 6
     preProvisioned: 2
     cleanupPolicy: drop
@@ -73,6 +76,7 @@ partitions:
     table: request_logs
     partitionKey: created_at
     interval: daily
+    initialRetention: 1
     retention: 14
     preProvisioned: 7
     cleanupPolicy: drop
@@ -82,6 +86,7 @@ partitions:
     table: sessions
     partitionKey: started_at
     interval: weekly
+    initialRetention: 1
     retention: 12
     preProvisioned: 4
     cleanupPolicy: drop
@@ -91,6 +96,7 @@ partitions:
     table: metrics
     partitionKey: recorded_at
     interval: monthly
+    initialRetention: 1
     retention: 24
     preProvisioned: 3
     cleanupPolicy: detach

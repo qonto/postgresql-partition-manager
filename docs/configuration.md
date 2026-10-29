@@ -61,7 +61,7 @@ Each entry in the `partitions` map defines a managed partition:
 | `interval` | Partitioning interval (`daily`, `weekly`, `monthly`, `quarterly`, or `yearly`) | |
 | `preProvisioned` | Number of partitions to create in advance | |
 | `retention` | Number of partitions to retain | |
-| `initialRetention` | Number of partitions in the past to create initially | |
+| `initialRetention` | Number of partitions in the past to create when provisioning | |
 | `cleanupPolicy` | Cleanup behavior: `drop` (detach and drop) or `detach` (detach only) | |
 
 ## Environment Variables
