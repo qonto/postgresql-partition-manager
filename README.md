@@ -18,6 +18,7 @@ partitions:
     partitionKey: created_at
     interval: daily
     retention: 30
+    initialRetention: 1
     preProvisioned: 7
     cleanupPolicy: drop
 ```

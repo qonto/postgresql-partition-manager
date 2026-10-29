@@ -97,8 +97,11 @@ func initCmd() *ppm.PPM {
 		os.Exit(InvalidConfigurationExitCode)
 	}
 
+	config.SetDefaults()
+
 	err := config.Check()
 	if err != nil {
+		fmt.Println("ERROR:", err)
 		os.Exit(InvalidConfigurationExitCode)
 	}
 

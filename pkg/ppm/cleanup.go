@@ -30,7 +30,7 @@ func (p PPM) CleanupPartitions() error {
 		p.logger.Info("Current ", "c_range", currentRange.String())
 
 		// Expected
-		expectedPartitions, err := getExpectedPartitions(config, p.workDate)
+		expectedPartitions, err := getExpectedPartitions(config, p.workDate, false)
 		if err != nil {
 			return fmt.Errorf("could not generate expected partitions: %w", err)
 		}

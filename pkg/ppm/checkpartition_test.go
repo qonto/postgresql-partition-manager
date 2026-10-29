@@ -60,15 +60,15 @@ func TestCheckPartitions(t *testing.T) {
 
 		switch p.Interval {
 		case partition.Daily:
-			retentionTables, _ = p.GetRetentionPartitions(forDate)
+			retentionTables, _ = p.GetRetentionPartitions(forDate, true)
 		case partition.Weekly:
-			retentionTables, _ = p.GetRetentionPartitions(forDate)
+			retentionTables, _ = p.GetRetentionPartitions(forDate, true)
 		case partition.Quarterly:
-			retentionTables, _ = p.GetRetentionPartitions(forDate)
+			retentionTables, _ = p.GetRetentionPartitions(forDate, true)
 		case partition.Monthly:
-			retentionTables, _ = p.GetRetentionPartitions(forDate)
+			retentionTables, _ = p.GetRetentionPartitions(forDate, true)
 		case partition.Yearly:
-			retentionTables, _ = p.GetRetentionPartitions(forDate)
+			retentionTables, _ = p.GetRetentionPartitions(forDate, true)
 		default:
 			t.Errorf("unuspported partition interval in retention table mock")
 		}

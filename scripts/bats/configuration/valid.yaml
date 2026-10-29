@@ -12,5 +12,6 @@ partitions:
     partitionKey: created_at
     interval: yearly
     retention: 1
+    initialRetention: 1
     preProvisioned: 1
     cleanupPolicy: drop

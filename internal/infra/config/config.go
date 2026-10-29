@@ -9,6 +9,8 @@ import (
 	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
 )
 
+var ErrConfigValidationFailed = errors.New("configuration validation failed")
+
 type Config struct {
 	Debug            bool                               `mapstructure:"debug"`
 	LogFormat        string                             `mapstructure:"log-format"`
@@ -27,8 +29,24 @@ func (c *Config) Check() error {
 
 		return fmt.Errorf("configuration validation failed: %w", err)
 	}
+	// check that retention periods are consistent
+	for _, partConfig := range c.Partitions {
+		if partConfig.InitialRetention > partConfig.Retention {
+			return fmt.Errorf("%w: \"initialRetention\" (%d) must be lower or equal to \"retention\" (%d)", ErrConfigValidationFailed, partConfig.InitialRetention, partConfig.Retention)
+		}
+	}
 
 	return nil
+}
+
+// Handle cross-parameter dependencies
+func (p *Config) SetDefaults() {
+	for i := range p.Partitions {
+		// Need to copy to mutate the map
+		tmp := p.Partitions[i]
+		tmp.SetDefaults()
+		p.Partitions[i] = tmp
+	}
 }
 
 func formatConfigurationError(err error) {

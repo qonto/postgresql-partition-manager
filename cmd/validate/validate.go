@@ -36,6 +36,8 @@ func ValidateCmd() *cobra.Command {
 				os.Exit(InternalErrorExitCode)
 			}
 
+			config.SetDefaults()
+
 			if err := config.Check(); err != nil {
 				os.Exit(InvalidConfigurationExitCode)
 			}
