@@ -23,10 +23,9 @@ func ValidateCmd() *cobra.Command {
 		Long:             `Check configuration file and exit with an error if configuration is invalid`,
 		TraverseChildren: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			var config config.Config
-
-			if err := viper.Unmarshal(&config); err != nil {
-				fmt.Printf("Unable to load configuration, %v", err)
+			config, err := config.FromViper(viper.GetViper())
+			if err != nil {
+				fmt.Println("ERROR:", err)
 				os.Exit(InvalidConfigurationExitCode)
 			}
 

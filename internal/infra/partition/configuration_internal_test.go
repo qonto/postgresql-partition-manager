@@ -9,13 +9,14 @@ import (
 
 func configForInterval(interval Interval, retention, preProvisioned int) Configuration {
 	return Configuration{
-		Schema:         "public",
-		Table:          "test_table",
-		PartitionKey:   "created_at",
-		Interval:       interval,
-		Retention:      retention,
-		PreProvisioned: preProvisioned,
-		CleanupPolicy:  Drop,
+		Schema:           "public",
+		Table:            "test_table",
+		PartitionKey:     "created_at",
+		Interval:         interval,
+		Retention:        retention,
+		InitialRetention: retention,
+		PreProvisioned:   preProvisioned,
+		CleanupPolicy:    Drop,
 	}
 }
 
@@ -458,7 +459,7 @@ func TestGetRetentionPartitionsContiguity(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			config := configForInterval(tc.interval, tc.retention, 1)
-			partitions, err := config.GetRetentionPartitions(tc.forDate)
+			partitions, err := config.GetRetentionPartitions(tc.forDate, true)
 			assert.NilError(t, err)
 			assert.Equal(t, len(partitions), tc.retention)
 

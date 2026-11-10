@@ -134,6 +134,7 @@ func TestGetGlobalRangeEqualBounds(t *testing.T) {
 }
 
 func TestGetExpectedPartitionsContiguity(t *testing.T) {
+	// Tests with InitialRetention = Retention
 	testCases := []struct {
 		name     string
 		config   partition.Configuration
@@ -143,7 +144,7 @@ func TestGetExpectedPartitionsContiguity(t *testing.T) {
 			name: "Daily March 31",
 			config: partition.Configuration{
 				Schema: "public", Table: "t", PartitionKey: "c",
-				Interval: partition.Daily, Retention: 7, PreProvisioned: 3, CleanupPolicy: partition.Drop,
+				Interval: partition.Daily, Retention: 7, InitialRetention: 7, PreProvisioned: 3, CleanupPolicy: partition.Drop,
 			},
 			workDate: time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC),
 		},
@@ -151,7 +152,7 @@ func TestGetExpectedPartitionsContiguity(t *testing.T) {
 			name: "Weekly March 31",
 			config: partition.Configuration{
 				Schema: "public", Table: "t", PartitionKey: "c",
-				Interval: partition.Weekly, Retention: 4, PreProvisioned: 2, CleanupPolicy: partition.Drop,
+				Interval: partition.Weekly, Retention: 4, InitialRetention: 4, PreProvisioned: 2, CleanupPolicy: partition.Drop,
 			},
 			workDate: time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC),
 		},
@@ -159,7 +160,7 @@ func TestGetExpectedPartitionsContiguity(t *testing.T) {
 			name: "Monthly March 31",
 			config: partition.Configuration{
 				Schema: "public", Table: "t", PartitionKey: "c",
-				Interval: partition.Monthly, Retention: 12, PreProvisioned: 3, CleanupPolicy: partition.Drop,
+				Interval: partition.Monthly, Retention: 12, InitialRetention: 12, PreProvisioned: 3, CleanupPolicy: partition.Drop,
 			},
 			workDate: time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC),
 		},
@@ -167,7 +168,7 @@ func TestGetExpectedPartitionsContiguity(t *testing.T) {
 			name: "Quarterly March 31",
 			config: partition.Configuration{
 				Schema: "public", Table: "t", PartitionKey: "c",
-				Interval: partition.Quarterly, Retention: 40, PreProvisioned: 2, CleanupPolicy: partition.Drop,
+				Interval: partition.Quarterly, Retention: 40, InitialRetention: 40, PreProvisioned: 2, CleanupPolicy: partition.Drop,
 			},
 			workDate: time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC),
 		},
@@ -175,7 +176,7 @@ func TestGetExpectedPartitionsContiguity(t *testing.T) {
 			name: "Quarterly May 31",
 			config: partition.Configuration{
 				Schema: "public", Table: "t", PartitionKey: "c",
-				Interval: partition.Quarterly, Retention: 8, PreProvisioned: 2, CleanupPolicy: partition.Drop,
+				Interval: partition.Quarterly, Retention: 8, InitialRetention: 8, PreProvisioned: 2, CleanupPolicy: partition.Drop,
 			},
 			workDate: time.Date(2026, 5, 31, 0, 0, 0, 0, time.UTC),
 		},
@@ -183,7 +184,7 @@ func TestGetExpectedPartitionsContiguity(t *testing.T) {
 			name: "Yearly December 31",
 			config: partition.Configuration{
 				Schema: "public", Table: "t", PartitionKey: "c",
-				Interval: partition.Yearly, Retention: 10, PreProvisioned: 2, CleanupPolicy: partition.Drop,
+				Interval: partition.Yearly, Retention: 10, InitialRetention: 10, PreProvisioned: 2, CleanupPolicy: partition.Drop,
 			},
 			workDate: time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		},
@@ -193,10 +194,43 @@ func TestGetExpectedPartitionsContiguity(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			partitions, err := getExpectedPartitions(tc.config, tc.workDate)
+			partitions, err := getExpectedPartitions(tc.config, tc.workDate, true)
 			assert.NilError(t, err)
 
 			expectedCount := tc.config.Retention + 1 + tc.config.PreProvisioned
+			assert.Equal(t, len(partitions), expectedCount)
+
+			// getGlobalRange validates contiguity — no gaps, no incoherent bounds
+			_, err = p.getGlobalRange(partitions)
+			assert.NilError(t, err, "expected partitions must be contiguous with no gaps")
+		})
+	}
+}
+
+func TestDifferingRetentions(t *testing.T) {
+	// Tests with InitialRetention != Retention
+	testCases := []struct {
+		name     string
+		config   partition.Configuration
+		workDate time.Time
+	}{
+		{
+			name: "Daily, start with 1, keep 7",
+			config: partition.Configuration{
+				Schema: "public", Table: "t", PartitionKey: "c",
+				Interval: partition.Daily, Retention: 7, InitialRetention: 1, PreProvisioned: 3, CleanupPolicy: partition.Drop,
+			},
+			workDate: time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC),
+		},
+	}
+	p := newTestPPM()
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			partitions, err := getExpectedPartitions(tc.config, tc.workDate, true)
+			assert.NilError(t, err)
+
+			expectedCount := tc.config.InitialRetention + 1 + tc.config.PreProvisioned
 			assert.Equal(t, len(partitions), expectedCount)
 
 			// getGlobalRange validates contiguity — no gaps, no incoherent bounds

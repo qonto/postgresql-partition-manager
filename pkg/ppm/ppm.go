@@ -45,8 +45,8 @@ func New(context context.Context, logger slog.Logger, db PostgreSQLClient, parti
 	}
 }
 
-func getExpectedPartitions(partition partition.Configuration, currentTime time.Time) (partitions []partition.Partition, err error) {
-	retentions, err := partition.GetRetentionPartitions(currentTime)
+func getExpectedPartitions(partition partition.Configuration, currentTime time.Time, provisioning bool) (partitions []partition.Partition, err error) {
+	retentions, err := partition.GetRetentionPartitions(currentTime, provisioning)
 	if err != nil {
 		return partitions, fmt.Errorf("could not generate retention partitions: %w", err)
 	}

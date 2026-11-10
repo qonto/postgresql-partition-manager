@@ -94,6 +94,7 @@ configuration:
       table: logs
       partitionKey: created_at
       interval: daily
+      initialRetention: 1
       retention: 30
       preProvisioned: 7
       cleanupPolicy: drop
