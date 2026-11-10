@@ -20,7 +20,7 @@ type Configuration struct {
 	PartitionKey     string        `mapstructure:"partitionKey" validate:"required"`
 	Interval         Interval      `mapstructure:"interval" validate:"required,oneof=daily weekly monthly quarterly yearly"`
 	Retention        int           `mapstructure:"retention" validate:"required,gt=0"`
-	InitialRetention int           `mapstructure:"initialRetention" validate:"min=1"`
+	InitialRetention int           `mapstructure:"initialRetention" validate:"min=0"`
 	PreProvisioned   int           `mapstructure:"preProvisioned" validate:"required,gt=0"`
 	CleanupPolicy    CleanupPolicy `mapstructure:"cleanupPolicy" validate:"required,oneof=drop detach"`
 }
@@ -177,12 +177,4 @@ func (p Configuration) getNextDate(forDate time.Time, i int) (t time.Time, err e
 	}
 
 	return t, nil
-}
-
-// Handle cross-parameter dependencies
-func (p *Configuration) SetDefaults() {
-	// when unspecified, initial retention equals retention
-	if p.InitialRetention == 0 {
-		p.InitialRetention = p.Retention
-	}
 }

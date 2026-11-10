@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/qonto/postgresql-partition-manager/internal/infra/partition"
+	"github.com/spf13/viper"
 )
 
 var ErrConfigValidationFailed = errors.New("configuration validation failed")
@@ -18,6 +19,31 @@ type Config struct {
 	StatementTimeout int                                `mapstructure:"statement-timeout" validate:"required"`
 	LockTimeout      int                                `mapstructure:"lock-timeout" validate:"required"`
 	Partitions       map[string]partition.Configuration `mapstructure:"partitions" validate:"required,dive,keys,endkeys,required"`
+}
+
+// FromViper explicitly builds a Config from the given viper instance and applies defaults.
+// It does not validate: call Check() on the result.
+func FromViper(v *viper.Viper) (*Config, error) {
+	var c Config
+
+	if err := v.Unmarshal(&c); err != nil {
+		return nil, fmt.Errorf("unable to load configuration: %w", err)
+	}
+
+	// "initialRetention" defaults to "retention" only when the key is absent:
+	// 0 is a valid explicit value. Viper lowercases keys.
+	raw := v.GetStringMap("partitions")
+
+	for name, p := range c.Partitions {
+		if m, ok := raw[name].(map[string]any); ok {
+			if _, set := m["initialretention"]; !set {
+				p.InitialRetention = p.Retention
+				c.Partitions[name] = p
+			}
+		}
+	}
+
+	return &c, nil
 }
 
 func (c *Config) Check() error {
@@ -37,16 +63,6 @@ func (c *Config) Check() error {
 	}
 
 	return nil
-}
-
-// Handle cross-parameter dependencies
-func (p *Config) SetDefaults() {
-	for i := range p.Partitions {
-		// Need to copy to mutate the map
-		tmp := p.Partitions[i]
-		tmp.SetDefaults()
-		p.Partitions[i] = tmp
-	}
 }
 
 func formatConfigurationError(err error) {

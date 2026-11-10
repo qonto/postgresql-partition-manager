@@ -184,7 +184,7 @@ func TestGetExpectedPartitionsContiguity(t *testing.T) {
 			name: "Yearly December 31",
 			config: partition.Configuration{
 				Schema: "public", Table: "t", PartitionKey: "c",
-				Interval: partition.Yearly, Retention: 10, PreProvisioned: 2, CleanupPolicy: partition.Drop,
+				Interval: partition.Yearly, Retention: 10, InitialRetention: 10, PreProvisioned: 2, CleanupPolicy: partition.Drop,
 			},
 			workDate: time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		},
@@ -194,7 +194,6 @@ func TestGetExpectedPartitionsContiguity(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.config.SetDefaults()
 			partitions, err := getExpectedPartitions(tc.config, tc.workDate, true)
 			assert.NilError(t, err)
 
@@ -228,7 +227,6 @@ func TestDifferingRetentions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.config.SetDefaults()
 			partitions, err := getExpectedPartitions(tc.config, tc.workDate, true)
 			assert.NilError(t, err)
 

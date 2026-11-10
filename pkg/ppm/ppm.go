@@ -56,8 +56,6 @@ func getExpectedPartitions(partition partition.Configuration, currentTime time.T
 		return partitions, fmt.Errorf("could not generate current partition: %w", err)
 	}
 
-	partition.SetDefaults()
-
 	future, err := partition.GetPreProvisionedPartitions(currentTime)
 	if err != nil {
 		return partitions, fmt.Errorf("could not generate preProvisioned partition: %w", err)
