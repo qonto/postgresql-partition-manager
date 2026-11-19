@@ -18,20 +18,20 @@ setup() {
   ppm_setup
 }
 
-@test "Test that useless partitions are removed by the cleanup" {
+@test "Test that obsolete partitions are removed by the cleanup" {
   local TABLE=$(generate_table_name)
   local INTERVAL=daily
-  local INITIAL_RETENTION=3
-  local INITIAL_PREPROVISIONED=3
+  local START_RETENTION=3
+  local START_PREPROVISIONED=3
 
   # Create partitioned table
-  create_daily_partitioned_table ${TABLE} ${INITIAL_RETENTION} ${INITIAL_PREPROVISIONED}
+  create_daily_partitioned_table ${TABLE} ${START_RETENTION} ${START_PREPROVISIONED}
 
-  for ((i=1; i<= INITIAL_RETENTION; i++));do
+  for ((i=1; i<= START_RETENTION; i++));do
     assert_table_exists public $(generate_daily_partition_name ${TABLE} -${i})
   done
 
-  for ((i=1; i<= INITIAL_PREPROVISIONED; i++));do
+  for ((i=1; i<= START_PREPROVISIONED; i++));do
     assert_table_exists public $(generate_daily_partition_name ${TABLE} ${i})
   done
 
@@ -60,11 +60,11 @@ EOF
   assert_table_exists public $(generate_daily_partition_name ${TABLE} 0) # current partition must still exists
   assert_table_exists public $(generate_daily_partition_name ${TABLE} -1) # Should exist
 
-  for ((i=NEW_RETENTION +1; i<= INITIAL_RETENTION; i++));do
+  for ((i=NEW_RETENTION +1; i<= START_RETENTION; i++));do
     assert_table_not_exists public $(generate_daily_partition_name ${TABLE} -${i})
   done
 
-  for ((i=NEW_RETENTION +1; i<= INITIAL_PREPROVISIONED; i++));do
+  for ((i=NEW_RETENTION +1; i<= START_PREPROVISIONED; i++));do
     assert_table_not_exists public $(generate_daily_partition_name ${TABLE} ${i})
   done
 
