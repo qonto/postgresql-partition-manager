@@ -129,3 +129,92 @@ EOF
 
   rm "$CONFIGURATION_FILE"
 }
+
+@test "Test cleanup with initialRetention=1 and retention=3" {
+  local TABLE=$(generate_table_name)
+  local INTERVAL=daily
+  local RETENTION=3
+  local INITIAL_RETENTION=1
+  local PREPROVISIONED=1
+
+  create_partitioned_table ${TABLE}
+
+  local CONFIGURATION=$(cat << EOF
+partitions:
+  unittest:
+    schema: public
+    table: ${TABLE}
+    interval: ${INTERVAL}
+    partitionKey: created_at
+    cleanupPolicy: drop
+    retention: ${RETENTION}
+    initialRetention: ${INITIAL_RETENTION}
+    preProvisioned: ${PREPROVISIONED}
+EOF
+)
+  local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
+
+  # Simulate time going by: provision then cleanup each day.
+  # With retention=3 the partitions whose upper bound is <= (work date - 3 days)
+  # are dropped. initialRetention only concerns provisioning and must not
+  # affect which partitions are dropped.
+  declare -A EXPECTED
+
+  EXPECTED[09]=$(cat << EOF
+public|${TABLE}_2026_03_08|2026-03-08|2026-03-09
+public|${TABLE}_2026_03_09|2026-03-09|2026-03-10
+public|${TABLE}_2026_03_10|2026-03-10|2026-03-11
+EOF
+)
+
+  EXPECTED[10]=$(cat << EOF
+public|${TABLE}_2026_03_08|2026-03-08|2026-03-09
+public|${TABLE}_2026_03_09|2026-03-09|2026-03-10
+public|${TABLE}_2026_03_10|2026-03-10|2026-03-11
+public|${TABLE}_2026_03_11|2026-03-11|2026-03-12
+EOF
+)
+
+  EXPECTED[11]=$(cat << EOF
+public|${TABLE}_2026_03_08|2026-03-08|2026-03-09
+public|${TABLE}_2026_03_09|2026-03-09|2026-03-10
+public|${TABLE}_2026_03_10|2026-03-10|2026-03-11
+public|${TABLE}_2026_03_11|2026-03-11|2026-03-12
+public|${TABLE}_2026_03_12|2026-03-12|2026-03-13
+EOF
+)
+
+  EXPECTED[12]=$(cat << EOF
+public|${TABLE}_2026_03_09|2026-03-09|2026-03-10
+public|${TABLE}_2026_03_10|2026-03-10|2026-03-11
+public|${TABLE}_2026_03_11|2026-03-11|2026-03-12
+public|${TABLE}_2026_03_12|2026-03-12|2026-03-13
+public|${TABLE}_2026_03_13|2026-03-13|2026-03-14
+EOF
+)
+
+  EXPECTED[13]=$(cat << EOF
+public|${TABLE}_2026_03_10|2026-03-10|2026-03-11
+public|${TABLE}_2026_03_11|2026-03-11|2026-03-12
+public|${TABLE}_2026_03_12|2026-03-12|2026-03-13
+public|${TABLE}_2026_03_13|2026-03-13|2026-03-14
+public|${TABLE}_2026_03_14|2026-03-14|2026-03-15
+EOF
+)
+
+  local d
+  for d in 09 10 11 12 13; do
+    PPM_WORK_DATE="2026-03-${d}" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
+    assert_success
+    assert_output --partial "All partitions are correctly provisioned"
+
+    PPM_WORK_DATE="2026-03-${d}" run "$PPM_PROG" run cleanup -c ${CONFIGURATION_FILE}
+    assert_success
+    assert_output --partial "All partitions are cleaned"
+
+    run list_existing_partitions "public" "${TABLE}"
+    assert_output "${EXPECTED[$d]}"
+  done
+
+  rm "$CONFIGURATION_FILE"
+}
