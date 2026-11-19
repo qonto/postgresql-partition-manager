@@ -509,3 +509,41 @@ EOF
 
   rm "$CONFIGURATION_FILE"
 }
+
+@test "Test provisioning with initialRetention=0 and retention=3" {
+  local TABLE=$(generate_table_name)
+  local INTERVAL=daily
+  local RETENTION=3
+  local INITIAL_RETENTION=0
+  local PREPROVISIONED=2
+
+  # Create partitioned table
+  create_partitioned_table ${TABLE}
+
+  local CONFIGURATION=$(cat <<EOF
+partitions:
+  unittest:
+    schema: public
+    table: ${TABLE}
+    interval: ${INTERVAL}
+    partitionKey: created_at
+    cleanupPolicy: drop
+    retention: ${RETENTION}
+    initialRetention: ${INITIAL_RETENTION}
+    preProvisioned: ${PREPROVISIONED}
+EOF
+)
+  local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
+
+  run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
+
+  assert_success
+  assert_output --partial "All partitions are correctly provisioned"
+  # No partition in the past since initialRetention=0
+  assert_table_not_exists public $(generate_daily_partition_name ${TABLE} -1)
+  assert_table_exists public $(generate_daily_partition_name ${TABLE} 0) # current partition
+  assert_table_exists public $(generate_daily_partition_name ${TABLE} 1) # preProvisioned partition
+  assert_table_exists public $(generate_daily_partition_name ${TABLE} 2) # preProvisioned partition
+
+  rm "$CONFIGURATION_FILE"
+}
