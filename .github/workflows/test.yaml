@@ -43,7 +43,6 @@ jobs:
     strategy:
       matrix:
         postgres:
-          - postgres:14
           - postgres:15
           - postgres:16
           - postgres:17
@@ -155,7 +154,7 @@ jobs:
       PGDATABASE: unittest
     services:
       postgres:
-        image: postgres:14
+        image: postgres:15
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
