@@ -18,20 +18,20 @@ setup() {
   ppm_setup
 }
 
-@test "Test that useless partitions are removed by the cleanup" {
+@test "Test that obsolete partitions are removed by the cleanup" {
   local TABLE=$(generate_table_name)
   local INTERVAL=daily
-  local INITIAL_RETENTION=3
-  local INITIAL_PREPROVISIONED=3
+  local START_RETENTION=3
+  local START_PREPROVISIONED=3
 
   # Create partitioned table
-  create_daily_partitioned_table ${TABLE} ${INITIAL_RETENTION} ${INITIAL_PREPROVISIONED}
+  create_daily_partitioned_table ${TABLE} ${START_RETENTION} ${START_PREPROVISIONED}
 
-  for ((i=1; i<= INITIAL_RETENTION; i++));do
+  for ((i=1; i<= START_RETENTION; i++));do
     assert_table_exists public $(generate_daily_partition_name ${TABLE} -${i})
   done
 
-  for ((i=1; i<= INITIAL_PREPROVISIONED; i++));do
+  for ((i=1; i<= START_PREPROVISIONED; i++));do
     assert_table_exists public $(generate_daily_partition_name ${TABLE} ${i})
   done
 
@@ -60,11 +60,11 @@ EOF
   assert_table_exists public $(generate_daily_partition_name ${TABLE} 0) # current partition must still exists
   assert_table_exists public $(generate_daily_partition_name ${TABLE} -1) # Should exist
 
-  for ((i=NEW_RETENTION +1; i<= INITIAL_RETENTION; i++));do
+  for ((i=NEW_RETENTION +1; i<= START_RETENTION; i++));do
     assert_table_not_exists public $(generate_daily_partition_name ${TABLE} -${i})
   done
 
-  for ((i=NEW_RETENTION +1; i<= INITIAL_PREPROVISIONED; i++));do
+  for ((i=NEW_RETENTION +1; i<= START_PREPROVISIONED; i++));do
     assert_table_not_exists public $(generate_daily_partition_name ${TABLE} ${i})
   done
 
@@ -126,6 +126,95 @@ EOF
   run list_existing_partitions "public" "${TABLE}"
 
   assert_output "$expected"
+
+  rm "$CONFIGURATION_FILE"
+}
+
+@test "Test cleanup with initialRetention=1 and retention=3" {
+  local TABLE=$(generate_table_name)
+  local INTERVAL=daily
+  local RETENTION=3
+  local INITIAL_RETENTION=1
+  local PREPROVISIONED=1
+
+  create_partitioned_table ${TABLE}
+
+  local CONFIGURATION=$(cat << EOF
+partitions:
+  unittest:
+    schema: public
+    table: ${TABLE}
+    interval: ${INTERVAL}
+    partitionKey: created_at
+    cleanupPolicy: drop
+    retention: ${RETENTION}
+    initialRetention: ${INITIAL_RETENTION}
+    preProvisioned: ${PREPROVISIONED}
+EOF
+)
+  local CONFIGURATION_FILE=$(generate_configuration_file "${CONFIGURATION}")
+
+  # Simulate time going by: provision then cleanup each day.
+  # With retention=3 the partitions whose upper bound is <= (work date - 3 days)
+  # are dropped. initialRetention only concerns provisioning and must not
+  # affect which partitions are dropped.
+  declare -A EXPECTED
+
+  EXPECTED[09]=$(cat << EOF
+public|${TABLE}_2026_03_08|2026-03-08|2026-03-09
+public|${TABLE}_2026_03_09|2026-03-09|2026-03-10
+public|${TABLE}_2026_03_10|2026-03-10|2026-03-11
+EOF
+)
+
+  EXPECTED[10]=$(cat << EOF
+public|${TABLE}_2026_03_08|2026-03-08|2026-03-09
+public|${TABLE}_2026_03_09|2026-03-09|2026-03-10
+public|${TABLE}_2026_03_10|2026-03-10|2026-03-11
+public|${TABLE}_2026_03_11|2026-03-11|2026-03-12
+EOF
+)
+
+  EXPECTED[11]=$(cat << EOF
+public|${TABLE}_2026_03_08|2026-03-08|2026-03-09
+public|${TABLE}_2026_03_09|2026-03-09|2026-03-10
+public|${TABLE}_2026_03_10|2026-03-10|2026-03-11
+public|${TABLE}_2026_03_11|2026-03-11|2026-03-12
+public|${TABLE}_2026_03_12|2026-03-12|2026-03-13
+EOF
+)
+
+  EXPECTED[12]=$(cat << EOF
+public|${TABLE}_2026_03_09|2026-03-09|2026-03-10
+public|${TABLE}_2026_03_10|2026-03-10|2026-03-11
+public|${TABLE}_2026_03_11|2026-03-11|2026-03-12
+public|${TABLE}_2026_03_12|2026-03-12|2026-03-13
+public|${TABLE}_2026_03_13|2026-03-13|2026-03-14
+EOF
+)
+
+  EXPECTED[13]=$(cat << EOF
+public|${TABLE}_2026_03_10|2026-03-10|2026-03-11
+public|${TABLE}_2026_03_11|2026-03-11|2026-03-12
+public|${TABLE}_2026_03_12|2026-03-12|2026-03-13
+public|${TABLE}_2026_03_13|2026-03-13|2026-03-14
+public|${TABLE}_2026_03_14|2026-03-14|2026-03-15
+EOF
+)
+
+  local d
+  for d in 09 10 11 12 13; do
+    PPM_WORK_DATE="2026-03-${d}" run "$PPM_PROG" run provisioning -c ${CONFIGURATION_FILE}
+    assert_success
+    assert_output --partial "All partitions are correctly provisioned"
+
+    PPM_WORK_DATE="2026-03-${d}" run "$PPM_PROG" run cleanup -c ${CONFIGURATION_FILE}
+    assert_success
+    assert_output --partial "All partitions are cleaned"
+
+    run list_existing_partitions "public" "${TABLE}"
+    assert_output "${EXPECTED[$d]}"
+  done
 
   rm "$CONFIGURATION_FILE"
 }

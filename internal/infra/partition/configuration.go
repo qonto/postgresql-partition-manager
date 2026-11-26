@@ -15,13 +15,14 @@ const (
 )
 
 type Configuration struct {
-	Schema         string        `mapstructure:"schema" validate:"required"`
-	Table          string        `mapstructure:"table" validate:"required"`
-	PartitionKey   string        `mapstructure:"partitionKey" validate:"required"`
-	Interval       Interval      `mapstructure:"interval" validate:"required,oneof=daily weekly monthly quarterly yearly"`
-	Retention      int           `mapstructure:"retention" validate:"required,gt=0"`
-	PreProvisioned int           `mapstructure:"preProvisioned" validate:"required,gt=0"`
-	CleanupPolicy  CleanupPolicy `mapstructure:"cleanupPolicy" validate:"required,oneof=drop detach"`
+	Schema           string        `mapstructure:"schema" validate:"required"`
+	Table            string        `mapstructure:"table" validate:"required"`
+	PartitionKey     string        `mapstructure:"partitionKey" validate:"required"`
+	Interval         Interval      `mapstructure:"interval" validate:"required,oneof=daily weekly monthly quarterly yearly"`
+	Retention        int           `mapstructure:"retention" validate:"required,gt=0"`
+	InitialRetention int           `mapstructure:"initialRetention" validate:"min=0"`
+	PreProvisioned   int           `mapstructure:"preProvisioned" validate:"required,gt=0"`
+	CleanupPolicy    CleanupPolicy `mapstructure:"cleanupPolicy" validate:"required,oneof=drop detach"`
 }
 
 func (p Configuration) GeneratePartition(forDate time.Time) (Partition, error) {
@@ -76,10 +77,20 @@ func (p Configuration) GeneratePartition(forDate time.Time) (Partition, error) {
 	return partition, nil
 }
 
-func (p Configuration) GetRetentionPartitions(forDate time.Time) ([]Partition, error) {
-	partitions := make([]Partition, p.Retention)
+func (p Configuration) GetRetentionPartitions(forDate time.Time, provisioning bool) ([]Partition, error) {
+	// The number of existing partitions kept for retention can be
+	// up to p.Retention, but when provisioning (creating new
+	// partitions), let's create only as much as p.InitialRetention
+	var count int
+	if provisioning {
+		count = p.InitialRetention
+	} else {
+		count = p.Retention
+	}
 
-	for i := 1; i <= p.Retention; i++ {
+	partitions := make([]Partition, count)
+
+	for i := 1; i <= count; i++ {
 		prevDate, err := p.getPrevDate(forDate, i)
 		if err != nil {
 			return nil, fmt.Errorf("could not compute previous date: %w", err)

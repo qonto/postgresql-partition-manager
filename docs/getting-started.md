@@ -51,6 +51,7 @@ partitions:
     table: logs
     partitionKey: created_at
     interval: monthly
+    initialRetention: 1
     retention: 12
     preProvisioned: 3
     cleanupPolicy: drop
@@ -101,7 +102,7 @@ Partitions: logs_2025_06 FOR VALUES FROM ('2025-06-01 00:00:00+00') TO ('2025-07
 
 PPM will:
 
-1. **Provision** future partitions based on the `preProvisioned` setting
+1. **Provision** future and current partitions based on the `initialRetention` and `preProvisioned` settings
 2. **Cleanup** outdated partitions beyond the `retention` period
 3. **Check** that existing partitions match the expected configuration
 

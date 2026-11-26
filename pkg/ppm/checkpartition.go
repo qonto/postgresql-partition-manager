@@ -111,49 +111,6 @@ func IsSupportedKeyDataType(dataType postgresql.ColumnType) bool {
 	return slices.Contains(SupportedPartitionKeyDataType, dataType)
 }
 
-func (p *PPM) comparePartitions(existingTables, expectedTables []partition.Partition) (unexpectedTables, missingTables, incorrectBounds []partition.Partition) {
-	existing := make(map[string]partition.Partition)
-	expectedAndExists := make(map[string]bool)
-
-	for _, t := range existingTables {
-		existing[t.Name] = t
-	}
-
-	for _, t := range expectedTables {
-		if _, found := existing[t.Name]; found {
-			expectedAndExists[t.Name] = true
-			incorrectBound := false
-
-			if existing[t.Name].UpperBound != t.UpperBound {
-				incorrectBound = true
-
-				p.logger.Warn("Incorrect upper partition bound", "schema", t.Schema, "table", t.Name, "current_bound", existing[t.Name].UpperBound, "expected_bound", t.UpperBound)
-			}
-
-			if existing[t.Name].LowerBound != t.LowerBound {
-				incorrectBound = true
-
-				p.logger.Warn("Incorrect lower partition bound", "schema", t.Schema, "table", t.Name, "current_bound", existing[t.Name].LowerBound, "expected_bound", t.LowerBound)
-			}
-
-			if incorrectBound {
-				incorrectBounds = append(incorrectBounds, t)
-			}
-		} else {
-			missingTables = append(missingTables, t)
-		}
-	}
-
-	for _, t := range existingTables {
-		if _, found := expectedAndExists[t.Name]; !found {
-			// Only in existingTables and not in both
-			unexpectedTables = append(unexpectedTables, t)
-		}
-	}
-
-	return unexpectedTables, missingTables, incorrectBounds
-}
-
 func (p *PPM) ListPartitions(schema, table string) (partitions []partition.Partition, err error) {
 	rawPartitions, err := p.db.ListPartitions(schema, table)
 	if err != nil {
@@ -181,9 +138,10 @@ func (p *PPM) ListPartitions(schema, table string) (partitions []partition.Parti
 func (p *PPM) checkPartitionsConfiguration(config partition.Configuration) error {
 	partitionContainAnError := false
 
-	expectedPartitions, err := getExpectedPartitions(config, p.workDate)
+	// partitions expected by provisioning, down to initialRetention only
+	expectedPartitionsMin, err := getExpectedPartitions(config, p.workDate, true)
 	if err != nil {
-		return fmt.Errorf("could not generate expected partitions: %w", err)
+		return fmt.Errorf("could not generate minimal set of expected partitions: %w", err)
 	}
 
 	foundPartitions, err := p.ListPartitions(config.Schema, config.Table)
@@ -198,31 +156,16 @@ func (p *PPM) checkPartitionsConfiguration(config partition.Configuration) error
 
 	p.logger.Info("Existing range", "range", existingRange)
 
-	expectedRange, err := p.getGlobalRange(expectedPartitions)
+	expectedMinRange, err := p.getGlobalRange(expectedPartitionsMin)
 	if err != nil {
 		return fmt.Errorf("incorrect set of expected partitions: %w", err)
 	}
 
-	p.logger.Info("Expected range", "expected", expectedRange)
+	p.logger.Info("Expected minimum range", "expected", expectedMinRange)
 
-	unexpected, missing, incorrectBound := p.comparePartitions(foundPartitions, expectedPartitions)
-
-	if len(unexpected) > 0 {
+	// The minimal set of expected contiguous partitions must exist
+	if !(expectedMinRange.Intersection(existingRange).IsEqual(expectedMinRange)) {
 		partitionContainAnError = true
-
-		p.logger.Warn("Found unexpected tables", "tables", unexpected)
-	}
-
-	if len(missing) > 0 {
-		partitionContainAnError = true
-
-		p.logger.Warn("Found missing tables", "tables", missing)
-	}
-
-	if len(incorrectBound) > 0 {
-		partitionContainAnError = true
-
-		p.logger.Warn("Found partitions with incorrect bound", "tables", incorrectBound)
 	}
 
 	if partitionContainAnError {

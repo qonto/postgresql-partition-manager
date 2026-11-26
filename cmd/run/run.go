@@ -90,15 +90,15 @@ var ProvisioningCmd = &cobra.Command{
 }
 
 func initCmd() *ppm.PPM {
-	var config config.Config
-
-	if err := viper.Unmarshal(&config); err != nil {
-		fmt.Println("ERROR: Unable to load configuration", "error", err)
+	config, err := config.FromViper(viper.GetViper())
+	if err != nil {
+		fmt.Println("ERROR:", err)
 		os.Exit(InvalidConfigurationExitCode)
 	}
 
-	err := config.Check()
+	err = config.Check()
 	if err != nil {
+		fmt.Println("ERROR:", err)
 		os.Exit(InvalidConfigurationExitCode)
 	}
 

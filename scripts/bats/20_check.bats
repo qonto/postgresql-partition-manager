@@ -59,11 +59,11 @@ EOF
 @test "Test check return an error when retention partitions are missing" {
   local TABLE=$(generate_table_name)
   local INTERVAL=daily
-  local INITIAL_RETENTION=1
+  local RETENTION=1
   local NEW_RETENTION=2
   local PREPROVISIONED=1
 
-  create_daily_partitioned_table ${TABLE} ${TABLE} ${INITIAL_RETENTION} ${PREPROVISIONED}
+  create_daily_partitioned_table ${TABLE} ${TABLE} ${RETENTION} ${PREPROVISIONED}
 
   # Generate configuration with only 1 retention
   local CONFIGURATION=$(cat << EOF
@@ -83,7 +83,7 @@ EOF
   run "$PPM_PROG" run check -c ${CONFIGURATION_FILE}
 
   assert_failure
-  assert_output --partial "Found missing tables"
+  assert_output --partial "unexpected or missing partitions"
   rm "$CONFIGURATION_FILE"
 }
 
@@ -114,7 +114,7 @@ EOF
   run "$PPM_PROG" run check -c ${CONFIGURATION_FILE}
 
   assert_failure
-  assert_output --partial "Found missing tables"
+  assert_output --partial "unexpected or missing partitions"
   rm "$CONFIGURATION_FILE"
 }
 

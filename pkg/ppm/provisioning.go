@@ -41,7 +41,7 @@ func (p PPM) provisionPartitionsFor(config partition.Configuration, at time.Time
 		return fmt.Errorf("could not list partitions: %w", err)
 	}
 
-	partitions, err := getExpectedPartitions(config, at)
+	partitions, err := getExpectedPartitions(config, at, true)
 	if err != nil {
 		return fmt.Errorf("could not generate partition to create: %w", err)
 	}
